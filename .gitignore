@@ -1,0 +1,19 @@
+*.o
+*.obj
+*.exe
+*.a
+*.lib
+*.dll
+/Debug/
+/Release/
+/obj/
+/bin/
+
+# Eclipse/CDT project files
+.cproject
+.project
+
+#Code::Blocks files
+*.cbp
+*.depend
+*.layout
