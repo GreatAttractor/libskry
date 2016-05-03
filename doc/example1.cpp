@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     libskry::c_RefPointAlignment refPtAlignment(
             qualEst,
-            { }, // pass an empty vector; stabilization anchors
+            { }, // pass an empty vector; reference points
                  // will be placed automatically
             0.33f, // min. relative brightness to place points at;
                    // avoid the dark background
