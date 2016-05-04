@@ -331,7 +331,8 @@ void update_ref_pt_positions(
                 break;
 
             case SKRY_NUMBER_BEST:
-                is_quality_sufficient = (tri_q->sorted_idx[img_idx] >= num_active_imgs - quality_threshold);
+                is_quality_sufficient = quality_threshold > num_active_imgs ? 1 :
+                                            (tri_q->sorted_idx[img_idx] >= num_active_imgs - quality_threshold);
                 break;
         }
 
