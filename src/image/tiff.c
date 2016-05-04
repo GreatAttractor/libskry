@@ -162,7 +162,7 @@ enum SKRY_result parse_tag_BITS_PER_SAMPLE(const struct TIFF_field tiff_field,
 SKRY_Image *load_TIFF(const char *file_name,
                       enum SKRY_result *result)
 {
-    size_t img_width = 0, img_height = 0;
+    unsigned img_width = 0, img_height = 0;
     enum SKRY_pixel_format pix_fmt = SKRY_PIX_INVALID;
     SKRY_Image *img = 0;
     enum SKRY_result loc_result;
@@ -362,6 +362,16 @@ SKRY_Image *load_TIFF(const char *file_name,
     }
 
     fclose(file);
+
+    if (result)
+        *result = SKRY_SUCCESS;
+
+    LOG_MSG(SKRY_LOG_IMAGE, "Loaded TIFF image from \"%s\" as object %p with pixel data at %p, "
+                        "size %ux%u, %s.",
+        file_name, (void *)img, (void *)IMG_DATA(img)->pixels,
+        img_width, img_height, pix_fmt_str[IMG_DATA(img)->pix_fmt]);
+
+
     return img;
 }
 
@@ -603,9 +613,6 @@ enum SKRY_result get_TIFF_metadata(const char *file_name,
             break;
 
         }
-
-        if (img_width != UINT_MAX && img_height != UINT_MAX)
-            break;
     }
 
     if (samples_per_pixel == 1 && photometric_interpretation != PHMET_BLACK_IS_ZERO && photometric_interpretation != PHMET_WHITE_IS_ZERO ||
