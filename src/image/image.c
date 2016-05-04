@@ -629,22 +629,27 @@ void SKRY_convert_pix_fmt_of_subimage_into(
                 uint16_t *in_ptr16 = (uint16_t *)in_ptr;
                 switch (dest_pix_fmt)
                 {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])/3); break;
+                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)((((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])>>8) / 3); break;
                 case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)(((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])/3); break;
                 case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2]) * 1.0f/(3*0xFFFF); break;
 
                 case SKRY_PIX_BGRA8:
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8: // intentional fall-through
-                    out_ptr[0] = (uint8_t)(in_ptr16[2] >> 8);
-                    out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
                     out_ptr[2] = (uint8_t)(in_ptr16[0] >> 8);
+                    out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
+                    out_ptr[0] = (uint8_t)(in_ptr16[2] >> 8);
+                    break;
+
+                case SKRY_PIX_RGB8:
+                    out_ptr[0] = (uint8_t)(in_ptr16[0] >> 8);
+                    out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
+                    out_ptr[2] = (uint8_t)(in_ptr16[2] >> 8);
                     break;
 
                 case SKRY_PIX_RGB32F:
-                    ((float *)out_ptr)[0] = in_ptr[0] / 0xFFFF;
-                    ((float *)out_ptr)[1] = in_ptr[1] / 0xFFFF;
-                    ((float *)out_ptr)[2] = in_ptr[2] / 0xFFFF;
+                    ((float *)out_ptr)[0] = in_ptr16[0] * 1.0f/0xFFFF;
+                    ((float *)out_ptr)[1] = in_ptr16[1] * 1.0f/0xFFFF;
+                    ((float *)out_ptr)[2] = in_ptr16[2] * 1.0f/0xFFFF;
                     break;
                 default:
                     break;
