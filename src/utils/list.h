@@ -18,20 +18,24 @@ You should have received a copy of the GNU General Public License
 along with libskry.  If not, see <http://www.gnu.org/licenses/>.
 
 File description:
-    Video-loading functions header.
+    Doubly linked list header.
 */
 
-#ifndef LIBSKRY_VIDEO_HEADER
-#define LIBSKRY_VIDEO_HEADER
+#ifndef LIB_STACKISTRY_DL_LIST_HEADER
+#define LIB_STACKISTRY_DL_LIST_HEADER
 
-struct SKRY_img_sequence *init_AVI(const char *file_name,
-                                   SKRY_ImagePool *img_pool,
-                                   /// If not null, receives operation result
-                                   enum SKRY_result *result);
 
-struct SKRY_img_sequence *init_SER(const char *file_name,
-                                   SKRY_ImagePool *img_pool,
-                                   /// If not null, receives operation result
-                                   enum SKRY_result *result);
+struct list_node
+{
+    struct list_node *prev, *next;
+    void *data;
+};
 
-#endif // LIBSKRY_VIDEO_HEADER
+void list_add(struct list_node **list, void *data);
+void list_remove(struct list_node **list, struct list_node *node);
+
+/** Frees all nodes (calling 'fn_free_node_data' on each node's 'data' field)
+    and sets 'list' to null. */
+void list_free(struct list_node **list, void (*fn_free_node_data)(void *));
+
+#endif // LIB_STACKISTRY_DL_LIST_HEADER

@@ -104,12 +104,14 @@ void SKRY_deactivate_img_seq(struct SKRY_img_sequence *img_seq)
     img_seq->deactivate_img_seq(img_seq);
 }
 
-struct SKRY_img_sequence *SKRY_init_video_file(const char *file_name, enum SKRY_result *result)
+struct SKRY_img_sequence *SKRY_init_video_file(const char *file_name,
+                                               SKRY_ImagePool *img_pool,
+                                               enum SKRY_result *result)
 {
     if (compare_extension(file_name, "avi"))
-        return init_AVI(file_name, result);
+        return init_AVI(file_name, img_pool, result);
     else if (compare_extension(file_name, "ser"))
-        return init_SER(file_name, result);
+        return init_SER(file_name, img_pool, result);
     else
     {
         if (result) *result = SKRY_UNSUPPORTED_FILE_FORMAT;
@@ -117,13 +119,18 @@ struct SKRY_img_sequence *SKRY_init_video_file(const char *file_name, enum SKRY_
     }
 }
 
-void base_init(struct SKRY_img_sequence *img_seq)
+void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool)
 {
     img_seq->is_img_active = malloc(img_seq->num_images * sizeof(*img_seq->is_img_active));
     memset(img_seq->is_img_active, 1, img_seq->num_images);
     img_seq->last_active_idx = img_seq->num_images-1;
     img_seq->num_active_images = img_seq->num_images;
     SKRY_seek_start(img_seq);
+    if (img_pool)
+    {
+        img_seq->img_pool = img_pool;
+        img_seq->pool_node = connect_img_sequence(img_pool, img_seq);
+    }
 }
 
 void SKRY_set_active_imgs(struct SKRY_img_sequence *img_seq,
@@ -164,6 +171,16 @@ size_t SKRY_get_curr_img_idx_within_active_subset(const struct SKRY_img_sequence
 enum SKRY_img_sequence_type SKRY_get_img_seq_type(const struct SKRY_img_sequence *img_seq)
 {
     return img_seq->type;
+}
+
+void SKRY_disconnect_from_img_pool(SKRY_ImgSequence *img_seq)
+{
+    if (img_seq->img_pool)
+    {
+        disconnect_img_sequence(img_seq->img_pool, img_seq->pool_node);
+        img_seq->img_pool = 0;
+        img_seq->pool_node = 0;
+    }
 }
 
 #define FAIL(error)                  \

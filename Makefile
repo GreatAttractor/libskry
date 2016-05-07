@@ -35,8 +35,10 @@ OBJECTS = avi.o \
           image.o \
           image_list.o \
           img_align.o \
+          img_pool.o \
           imgseq.o \
           init.o \
+          list.o \
           logging.o \
           match.o \
           misc.o \
@@ -90,6 +92,10 @@ $(OBJ_DIR)/img_align.o: $(SRC_DIR)/img_align.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/img_align.c -o $(OBJ_DIR)/img_align.o
 	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/img_align.c > $(OBJ_DIR)/img_align.d
 
+$(OBJ_DIR)/img_pool.o: $(SRC_DIR)/utils/img_pool.c
+	$(CC)  $(CFLAGS) $(SRC_DIR)/utils/img_pool.c -o $(OBJ_DIR)/img_pool.o
+	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/utils/img_pool.c > $(OBJ_DIR)/img_pool.d
+
 $(OBJ_DIR)/imgseq.o: $(SRC_DIR)/imgseq/imgseq.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/imgseq/imgseq.c -o $(OBJ_DIR)/imgseq.o
 	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/imgseq/imgseq.c > $(OBJ_DIR)/imgseq.d
@@ -97,6 +103,10 @@ $(OBJ_DIR)/imgseq.o: $(SRC_DIR)/imgseq/imgseq.c
 $(OBJ_DIR)/init.o: $(SRC_DIR)/init.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/init.c -o $(OBJ_DIR)/init.o
 	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/init.c > $(OBJ_DIR)/init.d
+
+$(OBJ_DIR)/list.o: $(SRC_DIR)/utils/list.c
+	$(CC)  $(CFLAGS) $(SRC_DIR)/utils/list.c -o $(OBJ_DIR)/list.o
+	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/utils/list.c > $(OBJ_DIR)/list.d
 
 $(OBJ_DIR)/logging.o: $(SRC_DIR)/utils/logging.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/utils/logging.c -o $(OBJ_DIR)/logging.o

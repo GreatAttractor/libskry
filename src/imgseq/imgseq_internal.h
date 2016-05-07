@@ -23,9 +23,12 @@ File description:
 
 #ifndef LIB_STACKISTRY_IMG_SEQ_INTERNAL_HEADER
 #define LIB_STACKISTRY_IMG_SEQ_INTERNAL_HEADER
+
 #include <skry/imgseq.h>
+#include "../utils/img_pool.h"
 
 
+/// The function must also free the SKRY_img_sequence structure itself (i.e. call free() for its argument)
 typedef                               void fn_free(struct SKRY_img_sequence *);
 typedef         struct SKRY_image *fn_get_curr_img(const struct SKRY_img_sequence *, enum SKRY_result *);
 typedef  enum SKRY_result fn_get_curr_img_metadata(const struct SKRY_img_sequence *, unsigned *, unsigned *, enum SKRY_pixel_format *);
@@ -42,6 +45,8 @@ struct SKRY_img_sequence
     size_t last_active_idx; ///< Index of last non-zero element in 'is_img_active'
     size_t num_active_images;
     void *data;
+    SKRY_ImagePool *img_pool; ///< May be null
+    struct list_node *pool_node; ///< Identifier of the img. sequence in 'img_pool'
 
     fn_free                  *free;
     fn_get_curr_img          *get_curr_img;
@@ -51,6 +56,6 @@ struct SKRY_img_sequence
 };
 
 /// Must be called after img_seq->num_images has been set
-void base_init(struct SKRY_img_sequence *img_seq);
+void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool);
 
 #endif // LIB_STACKISTRY_IMG_SEQ_INTERNAL_HEADER

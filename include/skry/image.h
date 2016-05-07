@@ -138,4 +138,8 @@ enum SKRY_result SKRY_get_image_metadata(const char *file_name,
 enum SKRY_result SKRY_save_image(const SKRY_Image *img, const char *file_name,
                                  enum SKRY_output_format output_fmt);
 
+/// Returns number of bytes occupied by the image
+/** The value may not encompass some of image's metadata (ca. tens to hundreds of bytes). */
+size_t SKRY_get_img_byte_count(const SKRY_Image *img);
+
 #endif // LIB_STACKISTRY_IMAGE_HEADER

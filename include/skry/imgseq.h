@@ -32,15 +32,23 @@ File description:
 
 
 typedef struct SKRY_img_sequence SKRY_ImgSequence;
+typedef struct SKRY_image_pool SKRY_ImagePool;
 
 SKRY_ImgSequence *SKRY_init_image_list(
         size_t num_images,
         /// If null, SKRY_image_list_add_img() must be later used to add 'num_images' file names
-        const char *file_names[]);
+        const char *file_names[],
+        /** If not null, will be used to keep converted images in memory for use
+            by subsequent processing phases. */
+        SKRY_ImagePool *img_pool);
 
-SKRY_ImgSequence *SKRY_init_video_file(const char *file_name,
-                                       /// If not null, receives operation result
-                                       enum SKRY_result *result);
+SKRY_ImgSequence *SKRY_init_video_file(
+    const char *file_name,
+    /** If not null, will be used to keep converted images in memory for use
+        by subsequent processing phases. */
+    SKRY_ImagePool *img_pool,
+    /// If not null, receives operation result
+    enum SKRY_result *result);
 
 enum SKRY_result SKRY_image_list_add_img(SKRY_ImgSequence *img_seq,
                                          const char *file_name);
@@ -99,5 +107,22 @@ SKRY_Image *SKRY_create_flatfield(
     /// If not null, receives operation result
     enum SKRY_result *result
 );
+
+/// Disconnects 'img_seq' from the image pool that was specified during 'img_seq's creation (if any)
+void SKRY_disconnect_from_img_pool(SKRY_ImgSequence *img_seq);
+
+/// Returns null if out of memory
+SKRY_ImagePool *SKRY_create_image_pool(
+    /// Value in bytes
+    /** Concerns only the size of stored images. The pool's internal data
+        structures occupy additional memory (e.g. for 1000 registered image
+        sequences with 1000 images each, on a system with 64-bit pointers
+        there will be additional 20+ megabytes used. */
+    size_t capacity
+);
+
+/// Returns null; also disconnects all image sequences that were using 'img_pool'
+SKRY_ImagePool *SKRY_free_image_pool(SKRY_ImagePool *img_pool);
+
 
 #endif // LIB_STACKISTRY_IMG_SEQ_HEADER

@@ -349,7 +349,9 @@ void AVI_free(struct SKRY_img_sequence *img_seq)
           + sizeof(chunk.ck_size),  \
           SEEK_SET);                \
 
-struct SKRY_img_sequence *init_AVI(const char *file_name, enum SKRY_result *result)
+struct SKRY_img_sequence *init_AVI(const char *file_name,
+                                   SKRY_ImagePool *img_pool,
+                                   enum SKRY_result *result)
 {
     /*
         Expected AVI file structure:
@@ -697,7 +699,7 @@ struct SKRY_img_sequence *init_AVI(const char *file_name, enum SKRY_result *resu
             img_seq->num_images,
             AVI_pixel_format_str[avi_data->pix_fmt]);
 
-    base_init(img_seq);
+    base_init(img_seq, img_pool);
 
     if (result) *result = SKRY_SUCCESS;
 

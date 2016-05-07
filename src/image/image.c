@@ -820,3 +820,10 @@ const unsigned *SKRY_get_supported_output_formats(
     *num_formats = sizeof(SUPPORTED_OUTP_FMT)/sizeof(*SUPPORTED_OUTP_FMT);
     return SUPPORTED_OUTP_FMT;
 }
+
+size_t SKRY_get_img_byte_count(const struct SKRY_image *img)
+{
+    ptrdiff_t lstride = SKRY_get_line_stride_in_bytes(img);
+    size_t bytes_per_line = (lstride > 0 ? lstride : -lstride);
+    return sizeof(*img) + SKRY_get_img_height(img) * bytes_per_line;
+}

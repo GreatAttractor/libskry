@@ -261,6 +261,7 @@ void SER_deactivate_img_seq(struct SKRY_img_sequence *img_seq)
     }
 
 struct SKRY_img_sequence *init_SER(const char *file_name,
+                                   SKRY_ImagePool *img_pool,
                                    enum SKRY_result *result)
 {
     struct SKRY_img_sequence *img_seq = malloc(sizeof(*img_seq));
@@ -340,7 +341,7 @@ struct SKRY_img_sequence *init_SER(const char *file_name,
             SER_color_format_str[color_id],
             img_seq->num_images);
 
-    base_init(img_seq);
+    base_init(img_seq, img_pool);
 
     fclose(data->file);
     data->file = 0;

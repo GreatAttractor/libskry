@@ -150,7 +150,8 @@ void image_list_deactivate(struct SKRY_img_sequence *img_seq)
 
 struct SKRY_img_sequence *SKRY_init_image_list(
         size_t num_images,
-        const char *file_names[])
+        const char *file_names[],
+        SKRY_ImagePool *img_pool)
 {
     struct SKRY_img_sequence *img_seq = malloc(sizeof(*img_seq));
     if (!img_seq)
@@ -166,7 +167,7 @@ struct SKRY_img_sequence *SKRY_init_image_list(
     img_seq->get_img_by_index =       image_list_get_img;
     img_seq->deactivate_img_seq =     image_list_deactivate;
 
-    base_init(img_seq);
+    base_init(img_seq, img_pool);
 
     struct image_list_data *data = malloc(sizeof(*data));
     FAIL_ON_NULL(data);
