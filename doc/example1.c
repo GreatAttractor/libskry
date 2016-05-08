@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {
     SKRY_initialize();
 
-    SKRY_ImgSequence *img_seq = SKRY_init_video_file("sun01.avi", 0);
+    SKRY_ImgSequence *img_seq = SKRY_init_video_file("sun01.avi", 0, 0);
 
     // Sometimes we may want to skip certain (e.g. invalid) frames during
     // processing; see the "active" family of functions for details.

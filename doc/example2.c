@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     SKRY_RefPtAlignment *ref_pt_align = 0;
     SKRY_Stacking *stacking = 0;
 
-    img_seq = SKRY_init_video_file("sun01.avi", &result);
+    img_seq = SKRY_init_video_file("sun01.avi", 0, &result);
     if (SKRY_SUCCESS != result)
     {
         FREE_OBJS();

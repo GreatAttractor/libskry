@@ -233,7 +233,7 @@ namespace libskry
 
         static c_ImageSequence InitImageList(const std::vector<std::string> &fileNames)
         {
-            c_ImageSequence imgSeq(SKRY_init_image_list(fileNames.size(), nullptr));
+            c_ImageSequence imgSeq(SKRY_init_image_list(fileNames.size(), nullptr, nullptr));
 
             if (imgSeq)
                 for (auto fn: fileNames)
@@ -244,7 +244,7 @@ namespace libskry
 
         static c_ImageSequence InitVideoFile(const char *fileName, enum SKRY_result *result = nullptr)
         {
-            return c_ImageSequence(SKRY_init_video_file(fileName, result));
+            return c_ImageSequence(SKRY_init_video_file(fileName, nullptr, result));
         }
 
         size_t GetCurrentImgIdx() const { return SKRY_get_curr_img_idx(pimpl.get()); }
