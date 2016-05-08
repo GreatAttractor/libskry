@@ -4,7 +4,7 @@
 
 Copyright (C) 2016 Filip Szczerek (ga.software@yahoo.com)
 
-version 0.0.1 (2016-05-01)
+version 0.0.2 (2016-05-08)
 
 *This library comes with ABSOLUTELY NO WARRANTY. This is free software, licensed under GNU General Public License v3 or any later version and you are welcome to redistribute it under certain conditions. See the LICENSE file for details.*
 
@@ -148,6 +148,13 @@ else
 ## 6. Change log
 
 ```
+0.0.2 (2016-05-08)
+  Bug fixes:
+    - Fix error when getting TIFF metadata
+    - Return SKRY_SUCCESS after loading a TIFF
+    - Fix pixel conversion from RGB16
+    - Use all fragments if criterion is "number of the best" and the threshold is more than active images count
+
 0.0.1 (2016-05-01)
-    Initial revision.
+  Initial revision.
 ```
