@@ -68,7 +68,7 @@ File description:
 
 #define LIBSKRY_MAJOR_VERSION    0
 #define LIBSKRY_MINOR_VERSION    0
-#define LIBSKRY_SUBMINOR_VERSION 1
+#define LIBSKRY_SUBMINOR_VERSION 2
 
 /// Must be called before using libskry
 enum SKRY_result SKRY_initialize(void);
