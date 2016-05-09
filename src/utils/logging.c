@@ -88,12 +88,6 @@ void SKRY_set_logging(unsigned log_event_type_mask,
     g_log_event_type_mask = log_event_type_mask;
 }
 
-void log_msg(unsigned log_event_type, const char *msg)
-{
-    if ((g_log_event_type_mask & log_event_type) && g_log_msg_callback)
-        g_log_msg_callback(log_event_type, msg);
-}
-
 const char *SKRY_get_error_message(enum SKRY_result error)
 {
     assert(error >= SKRY_SUCCESS && error <= SKRY_RESULT_LAST);

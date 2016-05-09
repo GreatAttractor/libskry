@@ -34,12 +34,17 @@ extern const char* pix_fmt_str[SKRY_NUM_PIX_FORMATS];
 extern SKRY_log_callback_fn *g_log_msg_callback;
 #define LOG_MSG_MAX_LEN 1024 /// Includes the NUL terminator
 extern char g_log_msg_buf[LOG_MSG_MAX_LEN];
-
-void log_msg(unsigned log_event_type, const char *msg);
+extern unsigned g_log_event_type_mask;
 
 /// Message formatting wrapper
-#define LOG_MSG(log_event_type, ...)                         \
-    { snprintf(g_log_msg_buf, LOG_MSG_MAX_LEN, __VA_ARGS__); \
-      log_msg((log_event_type), g_log_msg_buf); }
+#define LOG_MSG(log_event_type, ...)                           \
+do {                                                           \
+    if (g_log_msg_callback                                     \
+        && (g_log_event_type_mask & log_event_type))           \
+    {                                                          \
+        snprintf(g_log_msg_buf, LOG_MSG_MAX_LEN, __VA_ARGS__); \
+        g_log_msg_callback(log_event_type, g_log_msg_buf);     \
+    }                                                          \
+} while (0)
 
 #endif // LIBSKRY_LOGGING_HEADER
