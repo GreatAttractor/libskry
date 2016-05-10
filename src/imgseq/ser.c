@@ -48,8 +48,6 @@ File description:
   #define FSEEK64 fseek
 #endif
 
-#define SER_SIGNATURE "LUCAM-RECORDER"
-
 enum SER_color_format
 {
     SER_MONO       = 0,
@@ -289,12 +287,6 @@ struct SKRY_img_sequence *init_SER(const char *file_name,
     if (1 != fread(&fheader, sizeof(fheader), 1, data->file))
     {
         LOG_MSG(SKRY_LOG_AVI, "Could not read file header.");
-        FAIL(SKRY_SER_MALFORMED_FILE);
-    }
-
-    if (0 != strncmp(fheader.signature, SER_SIGNATURE, sizeof(fheader.signature)))
-    {
-        LOG_MSG(SKRY_LOG_SER, "Invalid file header.");
         FAIL(SKRY_SER_MALFORMED_FILE);
     }
 
