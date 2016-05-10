@@ -733,8 +733,8 @@ struct SKRY_image *SKRY_convert_pix_fmt_of_subimage(
     SKRY_get_palette(src_img, &src_palette);
 
     struct SKRY_image *dest_img = SKRY_new_image(width, height, dest_pix_fmt, &src_palette, 0);
-
-    SKRY_convert_pix_fmt_of_subimage_into(src_img, dest_img, x0, y0, 0, 0, width, height);
+    if (dest_img)
+        SKRY_convert_pix_fmt_of_subimage_into(src_img, dest_img, x0, y0, 0, 0, width, height);
 
     return dest_img;
 }

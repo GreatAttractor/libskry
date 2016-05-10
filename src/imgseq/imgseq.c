@@ -36,6 +36,7 @@ struct SKRY_img_sequence *SKRY_free_img_sequence(struct SKRY_img_sequence *img_s
 {
     if (img_seq)
     {
+        SKRY_disconnect_from_img_pool(img_seq);
         free(img_seq->is_img_active);
         img_seq->free(img_seq);
     }
@@ -255,3 +256,90 @@ SKRY_Image *SKRY_create_flatfield(SKRY_ImgSequence *img_seq, enum SKRY_result *r
 }
 
 #undef FAIL
+
+SKRY_Image *SKRY_get_curr_img_from_pool(
+              const SKRY_ImgSequence *img_seq,
+              enum SKRY_pixel_format pix_fmt,
+              enum SKRY_result *result)
+{
+    if (result) *result = SKRY_SUCCESS;
+
+    if (img_seq->img_pool)
+    {
+        SKRY_Image *img = get_image_from_pool(img_seq->img_pool,
+                                              img_seq->pool_node,
+                                              img_seq->curr_image_idx);
+
+        if (!img)
+        {
+            img = SKRY_get_curr_img(img_seq, result);
+            if (!img)
+                return 0;
+
+            if (SKRY_get_img_pix_fmt(img) != pix_fmt)
+            {
+                SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt);
+                SKRY_free_image(img);
+                if (!img_conv)
+                {
+                    if (result) *result = SKRY_OUT_OF_MEMORY;
+                    return 0;
+                }
+                else
+                    img = img_conv;
+            }
+
+            put_image_in_pool(img_seq->img_pool, img_seq->pool_node,
+                              img_seq->curr_image_idx, img);
+
+            return img;
+
+        }
+        else
+        {
+            if (SKRY_get_img_pix_fmt(img) != pix_fmt)
+            {
+                img = SKRY_convert_pix_fmt(img, pix_fmt);
+                if (!img)
+                {
+                    if (result) *result = SKRY_OUT_OF_MEMORY;
+                    return 0;
+                }
+                else
+                    put_image_in_pool(img_seq->img_pool, img_seq->pool_node,
+                                      img_seq->curr_image_idx, img);
+            }
+
+            return img;
+        }
+    }
+    else
+    {
+        SKRY_Image *img = SKRY_get_curr_img(img_seq, result);
+        if (SKRY_get_img_pix_fmt(img) != pix_fmt)
+        {
+            SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt);
+            SKRY_free_image(img);
+            if (!img_conv)
+            {
+                if (result) *result = SKRY_OUT_OF_MEMORY;
+                return 0;
+            }
+            else
+                img = img_conv;
+        }
+
+        return img;
+    }
+}
+
+void SKRY_release_img_to_pool(const SKRY_ImgSequence *img_seq, size_t img_idx, SKRY_Image *image)
+{
+    if (img_seq->img_pool &&
+        get_image_from_pool(img_seq->img_pool, img_seq->pool_node, img_idx) == image)
+    {
+        // do nothing
+    }
+    else
+        SKRY_free_image(image);
+}

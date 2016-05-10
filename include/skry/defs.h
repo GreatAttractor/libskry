@@ -47,6 +47,7 @@ enum
     SKRY_LOG_AVI              = 1U << 6,
     SKRY_LOG_IMG_ALIGNMENT    = 1U << 7,
     SKRY_LOG_SER              = 1U << 8,
+    SKRY_LOG_IMG_POOL         = 1U << 9,
 
     SKRY_LOG_ALL              = UINT_MAX
 };

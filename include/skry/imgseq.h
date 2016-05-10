@@ -73,6 +73,24 @@ SKRY_Image *SKRY_get_curr_img(const SKRY_ImgSequence *img_seq,
                               enum SKRY_result *result ///< If not null, receives operation result
                               );
 
+/// Returns the current image in specified format
+/** If 'img_seq' is connected to an image pool, the image is taken from the pool
+    if it exists there (and has 'pix_fmt'). If the image is not yet in the pool,
+    it will be converted to 'pix_fmt' and stored there, if the pool's capacity
+    is not yet exhausted. Otherwise, the image is read as usual and converted
+    without being added to the pool.
+    In any case, once the caller is done with the image, it *has to* call
+    'SKRY_release_img' and must not attempt to free the returned image. */
+SKRY_Image *SKRY_get_curr_img_from_pool(
+              const SKRY_ImgSequence *img_seq,
+              enum SKRY_pixel_format pix_fmt,
+              enum SKRY_result *result ///< If not null, receives operation result
+              );
+
+/** Has to be called for the image returned by 'SKRY_get_curr_img_from_pool',
+    when the image is no longer needed by the caller. */
+void SKRY_release_img_to_pool(const SKRY_ImgSequence *img_seq, size_t img_idx, SKRY_Image *image);
+
 enum SKRY_result SKRY_get_curr_img_metadata(const SKRY_ImgSequence *img_seq,
                                         unsigned *width,  ///< If not null, receives current image's width
                                         unsigned *height, ///< If not null, receives current image's height
