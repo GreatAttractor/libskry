@@ -73,6 +73,9 @@ struct list_node *connect_img_sequence(struct SKRY_image_pool *img_pool, SKRY_Im
     LOG_MSG(SKRY_LOG_IMG_POOL, "Connected img. seq. %p to img. pool %p (node: %p).",
             (void *)img_seq, (void *)img_pool, (void *)img_pool->img_seq_nodes);
 
+    if (!img_pool->LRU)
+        img_pool->LRU = img_pool->img_seq_nodes; // currently there is only one element
+
     return img_pool->img_seq_nodes;
 }
 
@@ -95,7 +98,9 @@ void disconnect_img_sequence(struct SKRY_image_pool *img_pool, struct list_node 
 static
 void mark_as_MRU(struct SKRY_image_pool *img_pool, struct list_node *img_seq_node)
 {
-    if (img_pool->img_seq_nodes == img_seq_node)
+    struct list_node *MRU = img_pool->img_seq_nodes;
+
+    if (MRU == img_seq_node)
         return;
 
     if (img_seq_node->prev)
@@ -108,7 +113,8 @@ void mark_as_MRU(struct SKRY_image_pool *img_pool, struct list_node *img_seq_nod
         img_pool->LRU = img_seq_node->prev;
 
     img_seq_node->prev = 0;
-    img_seq_node->next = img_pool->img_seq_nodes;
+    img_seq_node->next = MRU;
+    MRU->prev = img_seq_node;
     img_pool->img_seq_nodes = img_seq_node;
 
     LOG_MSG(SKRY_LOG_IMG_POOL, "Node %p (img. seq. %p) set as MRU in img. pool %p.",
@@ -127,6 +133,8 @@ void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
 
     struct list_node *less_recently_used_node = img_pool->LRU;
 
+    // If the image cannot fit in the pool, try freeing images of
+    // less recently used image sequences until there is room.
     while (img_pool->num_bytes + img_bytes > img_pool->capacity
            && less_recently_used_node
            && less_recently_used_node != img_seq_node)
@@ -142,8 +150,9 @@ void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
                 img_pool->num_bytes -= SKRY_get_img_byte_count(img_to_free);
                 data->images[curr_lru_img_index_to_free] = SKRY_free_image(img_to_free);
 
-                LOG_MSG(SKRY_LOG_IMG_POOL, "Freed image %p (index: %zu) from img. pool %p.",
-                        (void *)img_to_free, curr_lru_img_index_to_free, (void *)img_pool);
+                LOG_MSG(SKRY_LOG_IMG_POOL, "Freed image %p (index %zu in img. seq. %p) from img. pool %p.",
+                        (void *)img_to_free, curr_lru_img_index_to_free,
+                        (void *)data->img_seq, (void *)img_pool);
             }
             curr_lru_img_index_to_free++;
         }
@@ -152,17 +161,17 @@ void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
 
     if (img_pool->num_bytes + img_bytes <= img_pool->capacity)
     {
-        ((struct img_seq_entry *)img_seq_node->data)->images[img_index] = img;
+        data->images[img_index] = img;
         img_pool->num_bytes += img_bytes;
         mark_as_MRU(img_pool, img_seq_node);
 
-        LOG_MSG(SKRY_LOG_IMG_POOL, "Image %p put in img. pool %p (pool size is now %zu).",
-        (void *)img, (void *)img_pool, img_pool->num_bytes);
+        LOG_MSG(SKRY_LOG_IMG_POOL, "Image %p (index %zu in img. seq. %p) put in img. pool %p (pool size is now %zu).",
+        (void *)img, img_index, (void *)data->img_seq, (void *)img_pool, img_pool->num_bytes);
     }
     else
     {
-        LOG_MSG(SKRY_LOG_IMG_POOL, "Image %p (%zu bytes) could not be put in img. pool %p (size: %zu, capacity: %zu).",
-        (void *)img, img_bytes, (void *)img_pool, img_pool->num_bytes, img_pool->capacity);
+        LOG_MSG(SKRY_LOG_IMG_POOL, "Image %p (%zu bytes, index %zu in img. seq. %p) could not be put in img. pool %p (size: %zu, capacity: %zu).",
+        (void *)img, img_bytes, img_index, (void *)data->img_seq, (void *)img_pool, img_pool->num_bytes, img_pool->capacity);
 
         // report something to caller?
     }
@@ -173,12 +182,14 @@ SKRY_Image *get_image_from_pool(struct SKRY_image_pool *img_pool, struct list_no
     struct img_seq_entry *data = img_seq_node->data;
     assert(img_idx < data->num_images);
 
+    mark_as_MRU(img_pool, img_seq_node);
+
     if (data->images[img_idx])
     {
         mark_as_MRU(img_pool, img_seq_node);
 
-        LOG_MSG(SKRY_LOG_IMG_POOL, "Got image %p (index: %zu) from img. pool %p.",
-                (void *)data->images[img_idx], img_idx, (void *)img_pool);
+        LOG_MSG(SKRY_LOG_IMG_POOL, "Got image %p (index %zu in img. seq. %p) from img. pool %p.",
+                (void *)data->images[img_idx], img_idx, (void *)data->img_seq, (void *)img_pool);
 
         return data->images[img_idx];
     }
