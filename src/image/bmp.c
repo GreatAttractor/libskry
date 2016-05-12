@@ -370,16 +370,28 @@ enum SKRY_result save_BMP(const SKRY_Image *img, const char *file_name)
     }
 
     size_t skip = bmp_line_width - width*bytes_per_pixel;
-
+    uint8_t *bmp_line = malloc(3*width);
     for (unsigned i = 0; i < height; i++)
     {
-        void *line = SKRY_get_line(img, height-i-1);
+        uint8_t *line = SKRY_get_line(img, height-i-1);
 
-        fwrite(line, width * bytes_per_pixel, 1, file);
+        if (pix_fmt == SKRY_PIX_PAL8 || pix_fmt == SKRY_PIX_MONO8)
+            fwrite(line, width * bytes_per_pixel, 1, file);
+        else
+        {
+            // rearrange the channels to BGR order
+            for (unsigned x = 0; x < width; x++)
+            {
+                bmp_line[x*3 + 0] = line[x*3 + 2];
+                bmp_line[x*3 + 1] = line[x*3 + 1];
+                bmp_line[x*3 + 2] = line[x*3 + 0];
+            }
+            fwrite(bmp_line, width * bytes_per_pixel, 1, file);
+        }
         if (skip > 0)
             fwrite(line, skip, 1, file); // this is just padding, so write anything
     }
-
+    free(bmp_line);
     fclose(file);
 
     return SKRY_SUCCESS;
