@@ -462,22 +462,6 @@ void SKRY_convert_pix_fmt_of_subimage_into(
 
     if (src_pix_fmt > SKRY_PIX_CFA_MIN && src_pix_fmt < SKRY_PIX_CFA_MAX)
     {
-        /*
-          if (dest is mono)
-          {
-              if (dest != mono8)
-                create temp. image;
-
-              demosaic_8_as_mono8();
-              if (dest != mono8)
-              {
-                  convert temp. image to result;
-                  free temp. image;
-              }
-
-          }
-          */
-
         if (BITS_PER_CHANNEL[src_pix_fmt] == 8
             && dest_pix_fmt == SKRY_PIX_MONO8)
         {
