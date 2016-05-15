@@ -148,6 +148,7 @@ const char *SKRY_CFA_pattern_str[SKRY_NUM_CFA_PATTERNS] =
     [SKRY_CFA_BGGR] = "BGGR",
     [SKRY_CFA_GRBG] = "GRBG",
     [SKRY_CFA_GBRG] = "GBRG",
+    [SKRY_CFA_NONE] = "(none)",
 };
 
 const enum SKRY_CFA_pattern SKRY_PIX_CFA_PATTERN[SKRY_NUM_PIX_FORMATS] =
@@ -401,9 +402,6 @@ void SKRY_convert_pix_fmt_of_subimage_into(
     unsigned src_height = SKRY_get_img_height(src_img);
     enum SKRY_pixel_format src_pix_fmt = SKRY_get_img_pix_fmt(src_img);
     enum SKRY_pixel_format dest_pix_fmt = SKRY_get_img_pix_fmt(dest_img);
-
-    if (demosaic_method == SKRY_DEMOSAIC_DONT_CARE)
-        demosaic_method = SKRY_DEMOSAIC_SIMPLE;
 
     LOG_MSG(SKRY_LOG_IMAGE, "Converting image %p (%dx%d, %s) to %s "
                         "using fragment of size %dx%d starting at (%d, %d) and writing to image %p at (%d, %d).",

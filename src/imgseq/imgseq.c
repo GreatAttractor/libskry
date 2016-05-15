@@ -65,7 +65,17 @@ void SKRY_seek_start(struct SKRY_img_sequence *img_seq)
 SKRY_Image *SKRY_get_curr_img(const struct SKRY_img_sequence *img_seq,
                               enum SKRY_result *result)
 {
-    return img_seq->get_curr_img(img_seq, result);
+    SKRY_Image *img = img_seq->get_curr_img(img_seq, result);
+    if (img)
+    {
+        enum SKRY_pixel_format pix_fmt = SKRY_get_img_pix_fmt(img);
+        if (img_seq->CFA_pattern != SKRY_CFA_NONE &&
+            (pix_fmt == SKRY_PIX_MONO8 || pix_fmt == SKRY_PIX_MONO16))
+        {
+            SKRY_reinterpret_as_CFA(img, img_seq->CFA_pattern);
+        }
+    }
+    return img;
 }
 
 enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_seq,
@@ -73,7 +83,33 @@ enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_
                                             unsigned *height,
                                             enum SKRY_pixel_format *pix_fmt)
 {
-    return img_seq->get_curr_img_metadata(img_seq, width, height, pix_fmt);
+    enum SKRY_result result = img_seq->get_curr_img_metadata(img_seq, width, height, pix_fmt);
+    if (SKRY_SUCCESS == result)
+    {
+        if (img_seq->CFA_pattern != SKRY_CFA_NONE && pix_fmt)
+        {
+            if (*pix_fmt == SKRY_PIX_MONO8)
+                switch (img_seq->CFA_pattern)
+                {
+                    case SKRY_CFA_BGGR: *pix_fmt = SKRY_PIX_CFA_BGGR8; break;
+                    case SKRY_CFA_GBRG: *pix_fmt = SKRY_PIX_CFA_GBRG8; break;
+                    case SKRY_CFA_GRBG: *pix_fmt = SKRY_PIX_CFA_GRBG8; break;
+                    case SKRY_CFA_RGGB: *pix_fmt = SKRY_PIX_CFA_RGGB8; break;
+                    default: break;
+                }
+            else if (*pix_fmt == SKRY_PIX_MONO16)
+                switch (img_seq->CFA_pattern)
+                {
+                    case SKRY_CFA_BGGR: *pix_fmt = SKRY_PIX_CFA_BGGR16; break;
+                    case SKRY_CFA_GBRG: *pix_fmt = SKRY_PIX_CFA_GBRG16; break;
+                    case SKRY_CFA_GRBG: *pix_fmt = SKRY_PIX_CFA_GRBG16; break;
+                    case SKRY_CFA_RGGB: *pix_fmt = SKRY_PIX_CFA_RGGB16; break;
+                    default: break;
+                }
+        }
+
+    }
+    return result;
 }
 
 enum SKRY_result SKRY_seek_next(struct SKRY_img_sequence *img_seq)
@@ -97,7 +133,17 @@ enum SKRY_result SKRY_seek_next(struct SKRY_img_sequence *img_seq)
 SKRY_Image *SKRY_get_img_by_index(const struct SKRY_img_sequence *img_seq, size_t index,
                                   enum SKRY_result *result)
 {
-    return img_seq->get_img_by_index(img_seq, index, result);
+    SKRY_Image *img = img_seq->get_img_by_index(img_seq, index, result);
+    if (img)
+    {
+        enum SKRY_pixel_format pix_fmt = SKRY_get_img_pix_fmt(img);
+        if (img_seq->CFA_pattern != SKRY_CFA_NONE &&
+            (pix_fmt == SKRY_PIX_MONO8 || pix_fmt == SKRY_PIX_MONO16))
+        {
+            SKRY_reinterpret_as_CFA(img, img_seq->CFA_pattern);
+        }
+    }
+    return img;
 }
 
 void SKRY_deactivate_img_seq(struct SKRY_img_sequence *img_seq)
@@ -132,6 +178,7 @@ void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool)
         img_seq->img_pool = img_pool;
         img_seq->pool_node = connect_img_sequence(img_pool, img_seq);
     }
+    img_seq->CFA_pattern = SKRY_CFA_NONE;
 }
 
 void SKRY_set_active_imgs(struct SKRY_img_sequence *img_seq,
@@ -343,4 +390,9 @@ void SKRY_release_img_to_pool(const SKRY_ImgSequence *img_seq, size_t img_idx, S
     }
     else
         SKRY_free_image(image);
+}
+
+void SKRY_reinterpret_img_seq_as_CFA(SKRY_ImgSequence *img_seq, enum SKRY_CFA_pattern CFA_pattern)
+{
+    img_seq->CFA_pattern = CFA_pattern;
 }

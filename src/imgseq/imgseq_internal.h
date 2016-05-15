@@ -48,6 +48,10 @@ struct SKRY_img_sequence
     SKRY_ImagePool *img_pool; ///< May be null
     struct list_node *pool_node; ///< Identifier of the img. sequence in 'img_pool'
 
+    /** If not 'SKRY_CFA_NONE', used to override pixel format
+        of returned 8- and 16-bit mono images. */
+    enum SKRY_CFA_pattern CFA_pattern;
+
     fn_free                  *free;
     fn_get_curr_img          *get_curr_img;
     fn_get_curr_img_metadata *get_curr_img_metadata;

@@ -90,11 +90,13 @@ enum SKRY_pixel_format
 
 enum SKRY_CFA_pattern
 {
-    SKRY_CFA_RGGB,
+    SKRY_CFA_RGGB = 0,
     SKRY_CFA_BGGR,
     SKRY_CFA_GRBG,
     SKRY_CFA_GBRG,
 
+    SKRY_CFA_MAX,
+    SKRY_CFA_NONE = SKRY_CFA_MAX,
     SKRY_NUM_CFA_PATTERNS ///< This has to be the last element
 };
 
@@ -114,10 +116,9 @@ enum SKRY_demosaic_method
         during stacking phase */
     SKRY_DEMOSAIC_HQLINEAR,
 
-    /** For calling pixel format conversion functions on
-        non-raw color images. If an image is actually raw color,
-        treated as SKRY_DEMOSAIC_SIMPLE. */
-    SKRY_DEMOSAIC_DONT_CARE
+    /** Mainly for calling pixel format conversion functions
+        on non-raw color images. */
+    SKRY_DEMOSAIC_DONT_CARE = SKRY_DEMOSAIC_SIMPLE
 };
 
 enum SKRY_result

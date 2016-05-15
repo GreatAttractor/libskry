@@ -144,5 +144,16 @@ SKRY_ImagePool *SKRY_create_image_pool(
 /// Returns null; also disconnects all image sequences that were using 'img_pool'
 SKRY_ImagePool *SKRY_free_image_pool(SKRY_ImagePool *img_pool);
 
+/// Treat mono images in 'img_seq' as containing raw color data
+/** Applies only to 8- and 16-bit mono images. Only pixel format is updated,
+    the pixel data is unchanged. To demosaic, use one of the pixel format
+    conversion functions.
+    For SER videos marked as raw color, there is no need to call this function.
+    It can be used to override the CFA pattern indicated in the SER header. */
+void SKRY_reinterpret_img_seq_as_CFA(
+         SKRY_ImgSequence *img_seq,
+         /// Specify SKRY_CFA_NONE to disable pixel format overriding
+         enum SKRY_CFA_pattern CFA_pattern);
+
 
 #endif // LIB_STACKISTRY_IMG_SEQ_HEADER
