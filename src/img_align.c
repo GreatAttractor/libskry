@@ -192,7 +192,7 @@ struct SKRY_img_alignment *SKRY_init_img_alignment(
         SKRY_Image *blk = SKRY_convert_pix_fmt_of_subimage(first_img, SKRY_PIX_MONO8,
                                          anchors[i].x - block_radius,
                                          anchors[i].y - block_radius,
-                                         2*block_radius, 2*block_radius);
+                                         2*block_radius, 2*block_radius, SKRY_DEMOSAIC_SIMPLE);
         img_algn->anchors.data[i].ref_block = blk;
         img_algn->anchors.data[i].ref_block_qual =
             estimate_quality(SKRY_get_line(blk, 0),
@@ -248,7 +248,7 @@ enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
             return result;
         if (SKRY_get_img_pix_fmt(img) != SKRY_PIX_MONO8)
         {
-            SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8);
+            SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
             SKRY_free_image(img);
             if (!img_mono8)
                 return SKRY_OUT_OF_MEMORY;
@@ -291,7 +291,8 @@ enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
                                                           new_pos.x - blkw/2,
                                                           new_pos.y - blkh/2,
                                                           0, 0,
-                                                          blkw, blkh);
+                                                          blkw, blkh,
+                                                          SKRY_DEMOSAIC_SIMPLE);
                 }
 
                 if (i == img_algn->active_anchor_idx)
@@ -428,7 +429,7 @@ struct SKRY_point SKRY_suggest_anchor_pos(
     SKRY_Image *img8 = (SKRY_Image *)image;
     if (SKRY_get_img_pix_fmt(image) != SKRY_PIX_MONO8)
     {
-        img8 = SKRY_convert_pix_fmt(image, SKRY_PIX_MONO8);
+        img8 = SKRY_convert_pix_fmt(image, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
     }
 
     uint8_t bmin, bmax;

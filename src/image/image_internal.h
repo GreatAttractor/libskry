@@ -37,12 +37,12 @@ typedef               unsigned fn_get_height(const struct SKRY_image *);
 typedef              ptrdiff_t fn_get_line_stride_in_bytes(const struct SKRY_image *);
 typedef                 size_t fn_get_bytes_per_pixel(const struct SKRY_image *);
 typedef                  void *fn_get_line(const struct SKRY_image *, size_t);
-typedef enum SKRY_pixel_format fn_get_pix_fmt(const struct SKRY_image *);
 typedef       enum SKRY_result fn_get_palette(const struct SKRY_image *, struct SKRY_palette *);
 
 struct SKRY_image
 {
     void *data;
+    enum SKRY_pixel_format pix_fmt;
 
     fn_free                     *free; ///< Always returns null
     fn_get_width                *get_width;
@@ -50,7 +50,6 @@ struct SKRY_image
     fn_get_line_stride_in_bytes *get_line_stride_in_bytes;
     fn_get_bytes_per_pixel      *get_bytes_per_pixel;
     fn_get_line                 *get_line;
-    fn_get_pix_fmt              *get_pix_fmt;
     fn_get_palette              *get_palette;
 };
 
@@ -58,7 +57,6 @@ struct internal_img_data
 {
     int width;
     int height;
-    enum SKRY_pixel_format pix_fmt;
     struct SKRY_palette palette;
 
     /// Lines stored top-to-bottom, no padding

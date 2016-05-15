@@ -31,6 +31,7 @@ LIB_NAME = libskry.a
 
 OBJECTS = avi.o \
           bmp.o \
+          demosaic.o \
           filters.o \
           image.o \
           image_list.o \
@@ -75,6 +76,10 @@ $(OBJ_DIR)/avi.o: $(SRC_DIR)/imgseq/avi.c
 $(OBJ_DIR)/bmp.o: $(SRC_DIR)/image/bmp.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/image/bmp.c -o $(OBJ_DIR)/bmp.o
 	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/image/bmp.c > $(OBJ_DIR)/bmp.d
+
+$(OBJ_DIR)/demosaic.o: $(SRC_DIR)/utils/demosaic.c
+	$(CC)  $(CFLAGS) -Wno-unused-variable $(SRC_DIR)/utils/demosaic.c -o $(OBJ_DIR)/demosaic.o
+	$(CC)  $(C_DEP_OPT) $(CFLAGS) $(SRC_DIR)/utils/demosaic.c > $(OBJ_DIR)/demosaic.d
 
 $(OBJ_DIR)/filters.o: $(SRC_DIR)/utils/filters.c
 	$(CC)  $(CFLAGS) $(SRC_DIR)/utils/filters.c -o $(OBJ_DIR)/filters.o

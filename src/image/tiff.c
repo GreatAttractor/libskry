@@ -369,7 +369,7 @@ SKRY_Image *load_TIFF(const char *file_name,
     LOG_MSG(SKRY_LOG_IMAGE, "Loaded TIFF image from \"%s\" as object %p with pixel data at %p, "
                         "size %ux%u, %s.",
         file_name, (void *)img, (void *)IMG_DATA(img)->pixels,
-        img_width, img_height, pix_fmt_str[IMG_DATA(img)->pix_fmt]);
+        img_width, img_height, pix_fmt_str[img->pix_fmt]);
 
 
     return img;

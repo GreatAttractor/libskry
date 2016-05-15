@@ -666,7 +666,8 @@ struct SKRY_ref_pt_alignment *SKRY_init_ref_pt_alignment(
         first_img, SKRY_PIX_MONO8,
         intersection.x + first_img_offset.x,
         intersection.y + first_img_offset.y,
-        intersection.width, intersection.height);
+        intersection.width, intersection.height,
+        SKRY_DEMOSAIC_SIMPLE);
 
     SKRY_free_image(first_img);
     first_img = img8;
@@ -839,7 +840,7 @@ enum SKRY_result SKRY_ref_pt_alignment_step(struct SKRY_ref_pt_alignment *ref_pt
 
     if (SKRY_get_img_pix_fmt(img) != SKRY_PIX_MONO8)
     {
-        SKRY_Image *img8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8);
+        SKRY_Image *img8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
         SKRY_free_image(img);
         img = img8;
     }

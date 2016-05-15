@@ -156,17 +156,20 @@ namespace libskry
         }
 
         /// Returned image has lines stored top-to-bottom, no padding
-        static c_Image ConvertPixelFormat(const c_Image &srcImg, enum SKRY_pixel_format destPixFmt)
+        static c_Image ConvertPixelFormat(const c_Image &srcImg, enum SKRY_pixel_format destPixFmt,
+                                          enum SKRY_demosaic_method demosaicMethod = SKRY_DEMOSAIC_DONT_CARE)
         {
-            c_Image result(SKRY_convert_pix_fmt(srcImg.pimpl.get(), destPixFmt));
+            c_Image result(SKRY_convert_pix_fmt(srcImg.pimpl.get(), destPixFmt, demosaicMethod));
             return result;
         }
 
-        static c_Image ConvertPixelFormatOfSubimage(const c_Image &srcImg, enum SKRY_pixel_format destPixFmt,
-                                                    int x0, int y0, unsigned width, unsigned height)
+        static c_Image ConvertPixelFormatOfSubimage(
+                            const c_Image &srcImg, enum SKRY_pixel_format destPixFmt,
+                            int x0, int y0, unsigned width, unsigned height,
+                            enum SKRY_demosaic_method demosaicMethod = SKRY_DEMOSAIC_DONT_CARE)
         {
             c_Image result(SKRY_convert_pix_fmt_of_subimage(srcImg.pimpl.get(), destPixFmt,
-                x0, y0, width, height));
+                x0, y0, width, height, demosaicMethod));
             return result;
         }
 

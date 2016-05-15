@@ -84,6 +84,8 @@ SKRY_Image *SKRY_get_curr_img(const SKRY_ImgSequence *img_seq,
 SKRY_Image *SKRY_get_curr_img_from_pool(
               const SKRY_ImgSequence *img_seq,
               enum SKRY_pixel_format pix_fmt,
+              /// Used if source image contains raw color data
+              enum SKRY_demosaic_method demosaic_method,
               enum SKRY_result *result ///< If not null, receives operation result
               );
 

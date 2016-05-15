@@ -143,7 +143,7 @@ SKRY_Image *load_BMP(const char *file_name,
         if (result) *result = SKRY_OUT_OF_MEMORY;
         return 0;
     }
-    IMG_DATA(img)->pix_fmt = pix_fmt;
+    img->pix_fmt = pix_fmt;
     IMG_DATA(img)->width = img_width;
     IMG_DATA(img)->height = img_height;
     IMG_DATA(img)->pixels = malloc(img_width * img_height * src_bytes_per_pixel);
@@ -200,7 +200,7 @@ SKRY_Image *load_BMP(const char *file_name,
 
         // If it is a 0-255 grayscale palette, set the pixel format accordingly
         if (is_mono8_palette(&IMG_DATA(img)->palette))
-            IMG_DATA(img)->pix_fmt = SKRY_PIX_MONO8;
+            img->pix_fmt = SKRY_PIX_MONO8;
 
     }
     else if (pix_fmt == SKRY_PIX_RGB8)
@@ -278,7 +278,7 @@ SKRY_Image *load_BMP(const char *file_name,
     LOG_MSG(SKRY_LOG_IMAGE, "Loaded BMP image from \"%s\" as object %p with pixel data at %p, "
                         "size %dx%d, %s.",
         file_name, (void *)img, (void *)IMG_DATA(img)->pixels,
-        img_width, img_height, pix_fmt_str[IMG_DATA(img)->pix_fmt]);
+        img_width, img_height, pix_fmt_str[img->pix_fmt]);
 
     return img;
 }

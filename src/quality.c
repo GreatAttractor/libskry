@@ -265,7 +265,7 @@ enum SKRY_result create_reference_blocks(struct SKRY_quality_estimation *qual_es
                     if (!curr_img)
                         return result;
 
-                    SKRY_Image *img8 = SKRY_convert_pix_fmt(curr_img, SKRY_PIX_MONO8);
+                    SKRY_Image *img8 = SKRY_convert_pix_fmt(curr_img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
                     if (!img8)
                     {
                         SKRY_free_image(curr_img);
@@ -399,7 +399,7 @@ enum SKRY_result SKRY_quality_est_step(struct SKRY_quality_estimation *qual_est)
 
     if (SKRY_get_img_pix_fmt(curr_img) != SKRY_PIX_MONO8)
     {
-        SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(curr_img, SKRY_PIX_MONO8);
+        SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(curr_img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
         SKRY_free_image(curr_img);
         curr_img = img_mono8;
     }

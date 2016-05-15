@@ -234,7 +234,7 @@ struct SKRY_stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align
         if (SKRY_get_img_pix_fmt(flatfield) == SKRY_PIX_MONO32F)
             stacking->flatfield = SKRY_get_img_copy(flatfield);
         else
-            stacking->flatfield = SKRY_convert_pix_fmt(flatfield, SKRY_PIX_MONO32F);
+            stacking->flatfield = SKRY_convert_pix_fmt(flatfield, SKRY_PIX_MONO32F, SKRY_DEMOSAIC_HQLINEAR);
 
         FAIL_ON_NULL(stacking->flatfield);
 
@@ -383,7 +383,7 @@ enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
 
     if (SKRY_get_img_pix_fmt(img) != SKRY_get_img_pix_fmt(stacking->image_stack))
     {
-        SKRY_Image *img32f = SKRY_convert_pix_fmt(img, SKRY_get_img_pix_fmt(stacking->image_stack));
+        SKRY_Image *img32f = SKRY_convert_pix_fmt(img, SKRY_get_img_pix_fmt(stacking->image_stack), SKRY_DEMOSAIC_HQLINEAR);
         SKRY_free_image(img);
         img = img32f;
     }

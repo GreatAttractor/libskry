@@ -71,7 +71,53 @@ enum SKRY_pixel_format
     SKRY_PIX_MONO64F,
     SKRY_PIX_RGB64F,
 
+    SKRY_PIX_CFA_MIN, ///< All color filter array formats have to be above
+
+    SKRY_PIX_CFA_RGGB8,
+    SKRY_PIX_CFA_GRBG8,
+    SKRY_PIX_CFA_GBRG8,
+    SKRY_PIX_CFA_BGGR8,
+
+    SKRY_PIX_CFA_RGGB16,
+    SKRY_PIX_CFA_GRBG16,
+    SKRY_PIX_CFA_GBRG16,
+    SKRY_PIX_CFA_BGGR16,
+
+    SKRY_PIX_CFA_MAX, ///< All color filter array formats have to be below
+
     SKRY_NUM_PIX_FORMATS ///< This has to be the last element
+};
+
+enum SKRY_CFA_pattern
+{
+    SKRY_CFA_RGGB,
+    SKRY_CFA_BGGR,
+    SKRY_CFA_GRBG,
+    SKRY_CFA_GBRG,
+
+    SKRY_NUM_CFA_PATTERNS ///< This has to be the last element
+};
+
+extern const char *SKRY_CFA_pattern_str[SKRY_NUM_CFA_PATTERNS];
+
+/// Indexed by 'SKRY_pixel_format'
+extern const enum SKRY_CFA_pattern SKRY_PIX_CFA_PATTERN[SKRY_NUM_PIX_FORMATS];
+
+enum SKRY_demosaic_method
+{
+    /** Fast, but low-quality; used internally during
+        image alignment, quality estimation and
+        ref. point alignment */
+    SKRY_DEMOSAIC_SIMPLE,
+
+    /** High-quality and slower; used internally
+        during stacking phase */
+    SKRY_DEMOSAIC_HQLINEAR,
+
+    /** For calling pixel format conversion functions on
+        non-raw color images. If an image is actually raw color,
+        treated as SKRY_DEMOSAIC_SIMPLE. */
+    SKRY_DEMOSAIC_DONT_CARE
 };
 
 enum SKRY_result

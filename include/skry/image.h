@@ -95,13 +95,17 @@ void SKRY_resize_and_translate(
 );
 
 /// Returned image has lines stored top-to-bottom, no padding
-SKRY_Image *SKRY_convert_pix_fmt(const SKRY_Image *src_img, enum SKRY_pixel_format dest_pix_fmt);
+SKRY_Image *SKRY_convert_pix_fmt(const SKRY_Image *src_img,
+                                 enum SKRY_pixel_format dest_pix_fmt,
+                                 /// Used if 'img' contains raw color data
+                                 enum SKRY_demosaic_method demosaic_method);
 
 /// Returned image has lines stored top-to-bottom, no padding
 SKRY_Image *SKRY_convert_pix_fmt_of_subimage(
         const SKRY_Image *src_img, enum SKRY_pixel_format dest_pix_fmt,
-        int x0, int y0, unsigned width, unsigned height
-        );
+        int x0, int y0, unsigned width, unsigned height,
+        /// Used if 'img' contains raw color data
+        enum SKRY_demosaic_method demosaic_method);
 
 /// Converts a fragment of 'src_img' to 'dest_img's pixel format and writes it into 'dest_img'
 /** Cropping is performed if necessary. */
@@ -110,8 +114,9 @@ void SKRY_convert_pix_fmt_of_subimage_into(
         SKRY_Image       *dest_img,
         int src_x0, int src_y0,
         int dest_x0, int dest_y0,
-        unsigned width, unsigned height
-        );
+        unsigned width, unsigned height,
+        /// Used if 'img' contains raw color data
+        enum SKRY_demosaic_method demosaic_method);
 
 /// Returns a rectangle at (0, 0) and the same size as the image
 struct SKRY_rect SKRY_get_img_rect(const SKRY_Image *img);
@@ -141,5 +146,11 @@ enum SKRY_result SKRY_save_image(const SKRY_Image *img, const char *file_name,
 /// Returns number of bytes occupied by the image
 /** The value may not encompass some of image's metadata (ca. tens to hundreds of bytes). */
 size_t SKRY_get_img_byte_count(const SKRY_Image *img);
+
+/// Treat the image as containing raw color data (pixel format will be updated)
+/** Can be used only if the image is 8- or 16-bit mono. Only pixel format is updated,
+    the pixel data is unchanged. To demosaic, call this function and then use one
+    of the pixel format conversion functions. */
+void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern);
 
 #endif // LIB_STACKISTRY_IMAGE_HEADER

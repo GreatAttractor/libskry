@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     // before saving as a 16-bit TIFF.
     SKRY_Image *img_stack_mono16 = SKRY_convert_pix_fmt(
                                     SKRY_get_image_stack(stacking),
-                                    SKRY_PIX_RGB16);
+                                    SKRY_PIX_RGB16, SKRY_DEMOSAIC_DONT_CARE);
     SKRY_save_image(img_stack_mono16, "sun01_stack.tif", SKRY_TIFF_16);
     SKRY_free_image(img_stack_mono16);
 

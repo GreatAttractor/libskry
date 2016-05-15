@@ -219,7 +219,7 @@ SKRY_Image *SKRY_create_flatfield(SKRY_ImgSequence *img_seq, enum SKRY_result *r
         SKRY_Image *float_img = img;
         if (SKRY_get_img_pix_fmt(img) != SKRY_PIX_MONO32F)
         {
-            float_img = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO32F);
+            float_img = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO32F, SKRY_DEMOSAIC_HQLINEAR);
             SKRY_free_image(img);
         }
 
@@ -260,6 +260,7 @@ SKRY_Image *SKRY_create_flatfield(SKRY_ImgSequence *img_seq, enum SKRY_result *r
 SKRY_Image *SKRY_get_curr_img_from_pool(
               const SKRY_ImgSequence *img_seq,
               enum SKRY_pixel_format pix_fmt,
+              enum SKRY_demosaic_method demosaic_method,
               enum SKRY_result *result)
 {
     if (result) *result = SKRY_SUCCESS;
@@ -278,7 +279,7 @@ SKRY_Image *SKRY_get_curr_img_from_pool(
 
             if (SKRY_get_img_pix_fmt(img) != pix_fmt)
             {
-                SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt);
+                SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt, demosaic_method);
                 SKRY_free_image(img);
                 if (!img_conv)
                 {
@@ -299,7 +300,7 @@ SKRY_Image *SKRY_get_curr_img_from_pool(
         {
             if (SKRY_get_img_pix_fmt(img) != pix_fmt)
             {
-                img = SKRY_convert_pix_fmt(img, pix_fmt);
+                img = SKRY_convert_pix_fmt(img, pix_fmt, demosaic_method);
                 if (!img)
                 {
                     if (result) *result = SKRY_OUT_OF_MEMORY;
@@ -318,7 +319,7 @@ SKRY_Image *SKRY_get_curr_img_from_pool(
         SKRY_Image *img = SKRY_get_curr_img(img_seq, result);
         if (SKRY_get_img_pix_fmt(img) != pix_fmt)
         {
-            SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt);
+            SKRY_Image *img_conv = SKRY_convert_pix_fmt(img, pix_fmt, demosaic_method);
             SKRY_free_image(img);
             if (!img_conv)
             {

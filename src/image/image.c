@@ -34,6 +34,7 @@ File description:
 #include "bmp.h"
 #include "tiff.h"
 #include "image_internal.h"
+#include "../utils/demosaic.h"
 #include "../utils/logging.h"
 #include "../utils/misc.h"
 
@@ -46,6 +47,16 @@ const size_t BYTES_PER_PIXEL[SKRY_NUM_PIX_FORMATS] =
     [SKRY_PIX_MONO8]   = 1,
     [SKRY_PIX_RGB8]    = 3,
     [SKRY_PIX_BGRA8]   = 4,
+
+    [SKRY_PIX_CFA_RGGB8] = 1,
+    [SKRY_PIX_CFA_GRBG8] = 1,
+    [SKRY_PIX_CFA_GBRG8] = 1,
+    [SKRY_PIX_CFA_BGGR8] = 1,
+
+    [SKRY_PIX_CFA_RGGB16] = 2,
+    [SKRY_PIX_CFA_GRBG16] = 2,
+    [SKRY_PIX_CFA_GBRG16] = 2,
+    [SKRY_PIX_CFA_BGGR16] = 2,
 
     [SKRY_PIX_MONO16]  = 2,
     [SKRY_PIX_RGB16]   = 6,
@@ -75,7 +86,17 @@ const size_t NUM_CHANNELS[SKRY_NUM_PIX_FORMATS] =
     [SKRY_PIX_RGB32F]  = 3,
 
     [SKRY_PIX_MONO64F] = 1,
-    [SKRY_PIX_RGB64F]  = 3
+    [SKRY_PIX_RGB64F]  = 3,
+
+    [SKRY_PIX_CFA_RGGB8] = 1,
+    [SKRY_PIX_CFA_GRBG8] = 1,
+    [SKRY_PIX_CFA_GBRG8] = 1,
+    [SKRY_PIX_CFA_BGGR8] = 1,
+
+    [SKRY_PIX_CFA_RGGB16] = 1,
+    [SKRY_PIX_CFA_GRBG16] = 1,
+    [SKRY_PIX_CFA_GBRG16] = 1,
+    [SKRY_PIX_CFA_BGGR16] = 1,
 };
 
 const size_t BITS_PER_CHANNEL[SKRY_NUM_PIX_FORMATS] =
@@ -95,7 +116,17 @@ const size_t BITS_PER_CHANNEL[SKRY_NUM_PIX_FORMATS] =
     [SKRY_PIX_RGB32F]  = 32,
 
     [SKRY_PIX_MONO64F] = 64,
-    [SKRY_PIX_RGB64F]  = 64
+    [SKRY_PIX_RGB64F]  = 64,
+
+    [SKRY_PIX_CFA_RGGB8] = 8,
+    [SKRY_PIX_CFA_GRBG8] = 8,
+    [SKRY_PIX_CFA_GBRG8] = 8,
+    [SKRY_PIX_CFA_BGGR8] = 8,
+
+    [SKRY_PIX_CFA_RGGB16] = 16,
+    [SKRY_PIX_CFA_GRBG16] = 16,
+    [SKRY_PIX_CFA_GBRG16] = 16,
+    [SKRY_PIX_CFA_BGGR16] = 16,
 };
 
 const size_t OUTPUT_FMT_BITS_PER_CHANNEL[SKRY_OUTP_FMT_LAST] =
@@ -111,6 +142,26 @@ const unsigned SUPPORTED_OUTP_FMT[] =
     SKRY_TIFF_16,
 };
 
+const char *SKRY_CFA_pattern_str[SKRY_NUM_CFA_PATTERNS] =
+{
+    [SKRY_CFA_RGGB] = "RGGB",
+    [SKRY_CFA_BGGR] = "BGGR",
+    [SKRY_CFA_GRBG] = "GRBG",
+    [SKRY_CFA_GBRG] = "GBRG",
+};
+
+const enum SKRY_CFA_pattern SKRY_PIX_CFA_PATTERN[SKRY_NUM_PIX_FORMATS] =
+{
+    [SKRY_PIX_CFA_RGGB8] = SKRY_CFA_RGGB,
+    [SKRY_PIX_CFA_GRBG8] = SKRY_CFA_GRBG,
+    [SKRY_PIX_CFA_GBRG8] = SKRY_CFA_GBRG,
+    [SKRY_PIX_CFA_BGGR8] = SKRY_CFA_BGGR,
+
+    [SKRY_PIX_CFA_RGGB16] = SKRY_CFA_RGGB,
+    [SKRY_PIX_CFA_GRBG16] = SKRY_CFA_GRBG,
+    [SKRY_PIX_CFA_GBRG16] = SKRY_CFA_GBRG,
+    [SKRY_PIX_CFA_BGGR16] = SKRY_CFA_BGGR
+};
 
 // ------------ Implementation of the internal image class ---------------------
 
@@ -139,13 +190,13 @@ unsigned get_internal_img_height(const struct SKRY_image *img)
 static
 ptrdiff_t get_internal_line_stride_in_bytes(const struct SKRY_image *img)
 {
-    return (ptrdiff_t)(BYTES_PER_PIXEL[IMG_DATA(img)->pix_fmt] * IMG_DATA(img)->width);
+    return (ptrdiff_t)(BYTES_PER_PIXEL[img->pix_fmt] * IMG_DATA(img)->width);
 }
 
 static
 size_t get_internal_img_bytes_per_pixel(const struct SKRY_image *img)
 {
-    return BYTES_PER_PIXEL[IMG_DATA(img)->pix_fmt];
+    return BYTES_PER_PIXEL[img->pix_fmt];
 }
 
 static
@@ -154,17 +205,11 @@ void *get_internal_img_line(const struct SKRY_image *img, size_t line)
     return (char *)IMG_DATA(img)->pixels + line * get_internal_line_stride_in_bytes(img);
 }
 
-static
-enum SKRY_pixel_format get_internal_img_pix_fmt(const struct SKRY_image *img)
-{
-    return IMG_DATA(img)->pix_fmt;
-}
-
 /// Fills 'pal'; returns SKRY_NO_PALETTE if image does not contain a palette
 static
 enum SKRY_result get_internal_img_palette (const struct SKRY_image *img, struct SKRY_palette *pal)
 {
-    if (IMG_DATA(img)->pix_fmt != SKRY_PIX_PAL8)
+    if (img->pix_fmt != SKRY_PIX_PAL8)
         return SKRY_NO_PALETTE;
     else
     {
@@ -188,7 +233,7 @@ struct SKRY_image *create_internal_img(void)
         return 0;
     }
 
-    IMG_DATA(img)->pix_fmt = SKRY_PIX_INVALID;
+    img->pix_fmt = SKRY_PIX_INVALID;
     IMG_DATA(img)->width = IMG_DATA(img)->height = 0;
     IMG_DATA(img)->pixels = 0;
 
@@ -198,7 +243,6 @@ struct SKRY_image *create_internal_img(void)
     img->get_line_stride_in_bytes = get_internal_line_stride_in_bytes;
     img->get_bytes_per_pixel      = get_internal_img_bytes_per_pixel;
     img->get_line                 = get_internal_img_line;
-    img->get_pix_fmt              = get_internal_img_pix_fmt;
     img->get_palette              = get_internal_img_palette;
 
     return img;
@@ -243,7 +287,7 @@ void *SKRY_get_line (const struct SKRY_image *img, size_t line)
 
 enum SKRY_pixel_format SKRY_get_img_pix_fmt(const struct SKRY_image *img)
 {
-    return img->get_pix_fmt(img);
+    return img->pix_fmt;
 }
 
 void SKRY_resize_and_translate(
@@ -323,7 +367,7 @@ struct SKRY_image *SKRY_new_image(
 
     IMG_DATA(img)->width = width;
     IMG_DATA(img)->height = height;
-    IMG_DATA(img)->pix_fmt = pixel_format;
+    img->pix_fmt = pixel_format;
     size_t pixel_total_bytes = width * height * BYTES_PER_PIXEL[pixel_format];
     IMG_DATA(img)->pixels = malloc(pixel_total_bytes);
     if (!IMG_DATA(img)->pixels)
@@ -340,22 +384,26 @@ struct SKRY_image *SKRY_new_image(
     return img;
 }
 
-struct SKRY_image *SKRY_convert_pix_fmt(const struct SKRY_image *src_img, enum SKRY_pixel_format dest_pix_fmt)
+struct SKRY_image *SKRY_convert_pix_fmt(const struct SKRY_image *src_img, enum SKRY_pixel_format dest_pix_fmt,
+                                        enum SKRY_demosaic_method demosaic_method)
 {
     return SKRY_convert_pix_fmt_of_subimage(
             src_img, dest_pix_fmt,
-            0, 0, SKRY_get_img_width(src_img), SKRY_get_img_height(src_img));
+            0, 0, SKRY_get_img_width(src_img), SKRY_get_img_height(src_img), demosaic_method);
 }
 
 void SKRY_convert_pix_fmt_of_subimage_into(
         const struct SKRY_image *src_img, struct SKRY_image *dest_img,
-        int src_x0, int src_y0, int dest_x0, int dest_y0, unsigned width, unsigned height
-        )
+        int src_x0, int src_y0, int dest_x0, int dest_y0, unsigned width, unsigned height,
+        enum SKRY_demosaic_method demosaic_method)
 {
     unsigned src_width = SKRY_get_img_width(src_img);
     unsigned src_height = SKRY_get_img_height(src_img);
     enum SKRY_pixel_format src_pix_fmt = SKRY_get_img_pix_fmt(src_img);
     enum SKRY_pixel_format dest_pix_fmt = SKRY_get_img_pix_fmt(dest_img);
+
+    if (demosaic_method == SKRY_DEMOSAIC_DONT_CARE)
+        demosaic_method = SKRY_DEMOSAIC_SIMPLE;
 
     LOG_MSG(SKRY_LOG_IMAGE, "Converting image %p (%dx%d, %s) to %s "
                         "using fragment of size %dx%d starting at (%d, %d) and writing to image %p at (%d, %d).",
@@ -364,7 +412,8 @@ void SKRY_convert_pix_fmt_of_subimage_into(
 
     assert(dest_pix_fmt > SKRY_PIX_INVALID
            && dest_pix_fmt < SKRY_NUM_PIX_FORMATS
-           && !(dest_pix_fmt == SKRY_PIX_PAL8 && src_pix_fmt != SKRY_PIX_PAL8));
+           && !(dest_pix_fmt == SKRY_PIX_PAL8 && src_pix_fmt != SKRY_PIX_PAL8)
+           && (dest_pix_fmt < SKRY_PIX_CFA_MIN || dest_pix_fmt > SKRY_PIX_CFA_MAX));
 
     // Source position cropped so that the source rectangle fits in 'src_img'
     struct SKRY_point src_pos;
@@ -411,13 +460,111 @@ void SKRY_convert_pix_fmt_of_subimage_into(
         return;
     }
 
+    if (src_pix_fmt > SKRY_PIX_CFA_MIN && src_pix_fmt < SKRY_PIX_CFA_MAX)
+    {
+        /*
+          if (dest is mono)
+          {
+              if (dest != mono8)
+                create temp. image;
+
+              demosaic_8_as_mono8();
+              if (dest != mono8)
+              {
+                  convert temp. image to result;
+                  free temp. image;
+              }
+
+          }
+          */
+
+        if (BITS_PER_CHANNEL[src_pix_fmt] == 8
+            && dest_pix_fmt == SKRY_PIX_MONO8)
+        {
+            demosaic_8_as_mono8(
+                (uint8_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                width, height, SKRY_get_line_stride_in_bytes(src_img),
+                (uint8_t *)SKRY_get_line(dest_img, dest_pos.y) + dest_pos.x,
+                SKRY_get_line_stride_in_bytes(dest_img),
+                SKRY_PIX_CFA_PATTERN[src_pix_fmt],
+                demosaic_method);
+        }
+        else if (BITS_PER_CHANNEL[src_pix_fmt] == 8
+                 && dest_pix_fmt == SKRY_PIX_RGB8)
+        {
+            demosaic_8_as_RGB(
+                (uint8_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                width, height, SKRY_get_line_stride_in_bytes(src_img),
+                (uint8_t *)SKRY_get_line(dest_img, dest_pos.y) + 3*dest_pos.x,
+                SKRY_get_line_stride_in_bytes(dest_img),
+                SKRY_PIX_CFA_PATTERN[src_pix_fmt],
+                demosaic_method);
+        }
+        else if (BITS_PER_CHANNEL[src_pix_fmt] == 16
+            && dest_pix_fmt == SKRY_PIX_MONO8)
+        {
+            demosaic_16_as_mono8(
+                (uint16_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                width, height, SKRY_get_line_stride_in_bytes(src_img),
+                (uint8_t *)SKRY_get_line(dest_img, dest_pos.y) + dest_pos.x,
+                SKRY_get_line_stride_in_bytes(dest_img),
+                SKRY_PIX_CFA_PATTERN[src_pix_fmt],
+                demosaic_method);
+        }
+        else if (BITS_PER_CHANNEL[src_pix_fmt] == 16
+                 && dest_pix_fmt == SKRY_PIX_RGB16)
+        {
+            demosaic_16_as_RGB(
+                (uint16_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                width, height, SKRY_get_line_stride_in_bytes(src_img),
+                (uint16_t *)SKRY_get_line(dest_img, dest_pos.y) + 3*dest_pos.x,
+                SKRY_get_line_stride_in_bytes(dest_img),
+                SKRY_PIX_CFA_PATTERN[src_pix_fmt],
+                demosaic_method);
+        }
+        else
+        {
+            // Cannot demosaic directly into 'dest_img'. First demosaic to RGB8/RGB16,
+            // then convert to destination format.
+
+            SKRY_Image *demosaiced = 0;
+            if (BITS_PER_CHANNEL[src_pix_fmt] == 8)
+            {
+                demosaiced = SKRY_new_image(width, height, SKRY_PIX_RGB8, 0, 0);
+                demosaic_8_as_RGB(
+                  (uint8_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                  width, height, SKRY_get_line_stride_in_bytes(src_img),
+                  SKRY_get_line(demosaiced, 0), SKRY_get_line_stride_in_bytes(demosaiced),
+                  SKRY_PIX_CFA_PATTERN[src_pix_fmt], demosaic_method);
+            }
+            else if (BITS_PER_CHANNEL[src_pix_fmt] == 16)
+            {
+                demosaiced = SKRY_new_image(width, height, SKRY_PIX_RGB16, 0, 0);
+                demosaic_16_as_RGB(
+                  (uint16_t *)SKRY_get_line(src_img, src_pos.y) + src_pos.x,
+                  width, height, SKRY_get_line_stride_in_bytes(src_img),
+                  SKRY_get_line(demosaiced, 0), SKRY_get_line_stride_in_bytes(demosaiced),
+                  SKRY_PIX_CFA_PATTERN[src_pix_fmt], demosaic_method);
+            }
+
+            SKRY_convert_pix_fmt_of_subimage_into(
+                demosaiced, dest_img, 0, 0,
+                dest_pos.x, dest_pos.y, width, height,
+                demosaic_method);
+
+            SKRY_free_image(demosaiced);
+        }
+
+        return;
+    }
+
     ptrdiff_t in_ptr_step = BYTES_PER_PIXEL[src_pix_fmt],
               out_ptr_step = BYTES_PER_PIXEL[dest_pix_fmt];
 
     for (unsigned y = 0; y < height; y++)
     {
         uint8_t * restrict in_ptr = (uint8_t *)SKRY_get_line(src_img, y + src_pos.y) + src_pos.x * BYTES_PER_PIXEL[src_pix_fmt];
-        uint8_t * restrict out_ptr = (uint8_t *)SKRY_get_line(dest_img, y + dest_pos.y);
+        uint8_t * restrict out_ptr = (uint8_t *)SKRY_get_line(dest_img, y + dest_pos.y) + dest_pos.x * BYTES_PER_PIXEL[dest_pix_fmt];
 
         for (unsigned x = 0; x < width; x++)
         {
@@ -568,15 +715,16 @@ void SKRY_convert_pix_fmt_of_subimage_into(
                 case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = ((uint16_t)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2])/3; break;
                 case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0f/(3*0xFF); break;
                 case SKRY_PIX_MONO64F: *(double *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0/(3*0xFF); break;
-
-
-
                 case SKRY_PIX_BGRA8:
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8: // intentional fall-through
                     out_ptr[0] = src_palette.pal[3*src+2];
                     out_ptr[1] = src_palette.pal[3*src+1];
                     out_ptr[2] = src_palette.pal[3*src+0];
+                    break;
+                case SKRY_PIX_RGB8:
+                    out_ptr[0] = src_palette.pal[3*src+0];
+                    out_ptr[1] = src_palette.pal[3*src+1];
+                    out_ptr[2] = src_palette.pal[3*src+2];
                     break;
                 case SKRY_PIX_RGB16:
                     ((uint16_t *)out_ptr)[0] = (uint16_t)src_palette.pal[3*src] << 8;
@@ -667,10 +815,15 @@ void SKRY_convert_pix_fmt_of_subimage_into(
 
                 case SKRY_PIX_BGRA8:
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8: // intentional fall-through
                     out_ptr[0] = (uint8_t)(src[2] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[0] * 0xFF);
+                    break;
+
+                case SKRY_PIX_RGB8:
+                    out_ptr[0] = (uint8_t)(src[0] * 0xFF);
+                    out_ptr[1] = (uint8_t)(src[1] * 0xFF);
+                    out_ptr[2] = (uint8_t)(src[2] * 0xFF);
                     break;
 
                 case SKRY_PIX_RGB16:
@@ -698,11 +851,17 @@ void SKRY_convert_pix_fmt_of_subimage_into(
                 case SKRY_PIX_MONO64F: *(double *)out_ptr = (src[0] + src[1] + src[2])/3; break;
                 case SKRY_PIX_BGRA8:
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8: // intentional fall-through
                     out_ptr[0] = (uint8_t)(src[2] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[0] * 0xFF);
                     break;
+
+                case SKRY_PIX_RGB8:
+                    out_ptr[0] = (uint8_t)(src[0] * 0xFF);
+                    out_ptr[1] = (uint8_t)(src[1] * 0xFF);
+                    out_ptr[2] = (uint8_t)(src[2] * 0xFF);
+                    break;
+
                 case SKRY_PIX_RGB16:
                     ((uint16_t *)out_ptr)[0] = (uint16_t)(src[0] * 0xFFFF);
                     ((uint16_t *)out_ptr)[1] = (uint16_t)(src[1] * 0xFFFF);
@@ -726,15 +885,16 @@ void SKRY_convert_pix_fmt_of_subimage_into(
 
 struct SKRY_image *SKRY_convert_pix_fmt_of_subimage(
         const struct SKRY_image *src_img, enum SKRY_pixel_format dest_pix_fmt,
-        int x0, int y0, unsigned width, unsigned height
-        )
+        int x0, int y0, unsigned width, unsigned height,
+        enum SKRY_demosaic_method demosaic_method)
 {
     struct SKRY_palette src_palette;
     SKRY_get_palette(src_img, &src_palette);
 
     struct SKRY_image *dest_img = SKRY_new_image(width, height, dest_pix_fmt, &src_palette, 0);
     if (dest_img)
-        SKRY_convert_pix_fmt_of_subimage_into(src_img, dest_img, x0, y0, 0, 0, width, height);
+        SKRY_convert_pix_fmt_of_subimage_into(src_img, dest_img, x0, y0, 0, 0, width, height,
+                                              demosaic_method);
 
     return dest_img;
 }
@@ -826,4 +986,29 @@ size_t SKRY_get_img_byte_count(const struct SKRY_image *img)
     ptrdiff_t lstride = SKRY_get_line_stride_in_bytes(img);
     size_t bytes_per_line = (lstride > 0 ? lstride : -lstride);
     return sizeof(*img) + SKRY_get_img_height(img) * bytes_per_line;
+}
+
+void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern)
+{
+    if (NUM_CHANNELS[img->pix_fmt] == 1)
+    {
+        if (BITS_PER_CHANNEL[img->pix_fmt] == 8)
+            switch (CFA_pattern)
+            {
+                case SKRY_CFA_BGGR: img->pix_fmt = SKRY_PIX_CFA_BGGR8; break;
+                case SKRY_CFA_GBRG: img->pix_fmt = SKRY_PIX_CFA_GBRG8; break;
+                case SKRY_CFA_GRBG: img->pix_fmt = SKRY_PIX_CFA_GRBG8; break;
+                case SKRY_CFA_RGGB: img->pix_fmt = SKRY_PIX_CFA_RGGB8; break;
+                default: break;
+            }
+        else if (BITS_PER_CHANNEL[img->pix_fmt] == 16)
+            switch (CFA_pattern)
+            {
+                case SKRY_CFA_BGGR: img->pix_fmt = SKRY_PIX_CFA_BGGR16; break;
+                case SKRY_CFA_GBRG: img->pix_fmt = SKRY_PIX_CFA_GBRG16; break;
+                case SKRY_CFA_GRBG: img->pix_fmt = SKRY_PIX_CFA_GRBG16; break;
+                case SKRY_CFA_RGGB: img->pix_fmt = SKRY_PIX_CFA_RGGB16; break;
+                default: break;
+            }
+    }
 }
