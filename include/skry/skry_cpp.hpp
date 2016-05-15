@@ -324,6 +324,14 @@ namespace libskry
             return c_Image(SKRY_create_flatfield(pimpl.get(), result));
         }
 
+        /** Reinterprets mono images in the sequence as containing
+            color filter array data (raw color). */
+        void ReinterpretAsCFA(
+            /// Specify SKRY_CFA_NONE to disable pixel format overriding
+            enum SKRY_CFA_pattern cfaPattern)
+        {
+            SKRY_reinterpret_img_seq_as_CFA(pimpl.get(), cfaPattern);
+        }
 
         friend class c_ImageAlignment;
     };
