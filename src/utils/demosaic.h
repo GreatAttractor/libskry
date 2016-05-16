@@ -25,7 +25,8 @@ File description:
 #define LIB_STACKISTRY_DEMOSAIC_HEADER
 
 
-/* NOTE: 2-pixel borders on each side are not processed, just copied from their neighbors */
+/* NOTE: 2-pixel borders of the image at the top and on the left and 3-pixel borders at the bottom
+         and on the right are not processed, just copied from their neighbors */
 
 /// Performs demosaicing of 8-bit 'input' and saves as 8-bit RGB in 'output'
 /** 'width' and 'height' must be >= 6 */

@@ -368,18 +368,19 @@ do {                                                                            
         RGB_at_G_at_R_row[3], /* RGB values at green input pixel at red row */          \
         RGB_at_G_at_B_row[3]; /* RGB values at green input pixel at blue row */         \
                                                                                         \
-    /* skip 2-pixel borders */                                                          \
+    /* skip 2 initial rows */                                                           \
     InputT *src_row  = (InputT *)((uint8_t *)input + 2*input_stride);                   \
     OutputT *dest_row = (OutputT *)((uint8_t *)output + 2*output_stride);               \
                                                                                         \
-    /* Process pixels in 2x2 blocks */                                                  \
-    for (unsigned y = 2; y <= height-3; y += 2)                                         \
+    /* Process pixels in 2x2 blocks; each block has to be
+       at least 2 pixels from image border */                                           \
+    for (unsigned y = 2; y <= height-4; y += 2)                                         \
     {                                                                                   \
-        /* skip 2-pixel borders */                                                      \
+        /* skip 2 initial columns */                                                    \
         InputT *src_blk = src_row + 2*1;                                                \
         OutputT *dest_blk = dest_row + 2*n_out_ch;                                      \
                                                                                         \
-        for (unsigned x = 2; x <= width-3; x += 2)                                      \
+        for (unsigned x = 2; x <= width-4; x += 2)                                      \
         {                                                                               \
             /* Pointers to the current block's red row and its neighbors */             \
             InputT *src_blk_R   = (InputT *)((uint8_t *)src_blk + dyR*input_stride);    \
@@ -419,55 +420,55 @@ do {                                                                            
     for (size_t ch = 0; ch < n_out_ch; ch++)                                            \
     {                                                                                   \
         /* upper left 2x2 block */                                                      \
-        OUTPUT_AT(OutputT, n_out_ch, 0, 0) =                                            \
-        OUTPUT_AT(OutputT, n_out_ch, 0, 1) =                                            \
-        OUTPUT_AT(OutputT, n_out_ch, 1, 0) =                                            \
-        OUTPUT_AT(OutputT, n_out_ch, 1, 1) =                                            \
-            OUTPUT_AT(OutputT, n_out_ch, 2, 2);                                         \
+        for (unsigned x = 0; x <= 1; x++)                                               \
+            for (unsigned y = 0; y <= 1; y++)                                           \
+                OUTPUT_AT(OutputT, n_out_ch, x, y) =                                    \
+                    OUTPUT_AT(OutputT, n_out_ch, 2, 2);                                 \
                                                                                         \
-        /* lower left */                                                                \
-        OUTPUT_AT(OutputT, n_out_ch, 0, height-1) =                                     \
-        OUTPUT_AT(OutputT, n_out_ch, 0, height-2) =                                     \
-        OUTPUT_AT(OutputT, n_out_ch, 1, height-1) =                                     \
-        OUTPUT_AT(OutputT, n_out_ch, 1, height-2 ) =                                    \
-            OUTPUT_AT(OutputT, n_out_ch, 2, height-3);                                  \
+        /* lower left 2x3 block*/                                                       \
+        for (unsigned x = 0; x <= 1; x++)                                               \
+            for (unsigned y = height-3; y <= height-1; y++)                             \
+                OUTPUT_AT(OutputT, n_out_ch, x, y) =                                    \
+                    OUTPUT_AT(OutputT, n_out_ch, 2, height-4);                          \
                                                                                         \
-        /* lower right */                                                               \
-        OUTPUT_AT(OutputT, n_out_ch, width-1, height-1) =                               \
-        OUTPUT_AT(OutputT, n_out_ch, width-1, height-2) =                               \
-        OUTPUT_AT(OutputT, n_out_ch, width-2, height-1) =                               \
-        OUTPUT_AT(OutputT, n_out_ch, width-2, height-2 ) =                              \
-            OUTPUT_AT(OutputT, n_out_ch, width-3, height-3);                            \
+        /* lower right 3x3 block */                                                     \
+        for (unsigned x = width-3; x <= width-1; x++)                                   \
+            for (unsigned y = height-3; y <= height-1; y++)                             \
+                OUTPUT_AT(OutputT, n_out_ch, x, y) =                                    \
+                    OUTPUT_AT(OutputT, n_out_ch, width-4, height-4);                    \
                                                                                         \
-        /* upper right */                                                               \
-        OUTPUT_AT(OutputT, n_out_ch, width-1, 0) =                                      \
-        OUTPUT_AT(OutputT, n_out_ch, width-1, 1) =                                      \
-        OUTPUT_AT(OutputT, n_out_ch, width-2, 0) =                                      \
-        OUTPUT_AT(OutputT, n_out_ch, width-2, 1 ) =                                     \
-            OUTPUT_AT(OutputT, n_out_ch, width-3, 2);                                   \
+        /* upper right 3x2 block */                                                     \
+        for (unsigned x = width-3; x <= width-1; x++)                                   \
+            for (unsigned y = 0; y <= 1; y++)                                           \
+                OUTPUT_AT(OutputT, n_out_ch, x, y) =                                    \
+                    OUTPUT_AT(OutputT, n_out_ch, width-4, 2);                           \
                                                                                         \
-        /* top and bottom */                                                            \
-        for (unsigned x = 2; x <= width-3; x++)                                         \
+        for (unsigned x = 2; x <= width-4; x++)                                         \
         {                                                                               \
+            /* top */                                                                   \
             OUTPUT_AT(OutputT, n_out_ch, x, 0) =                                        \
             OUTPUT_AT(OutputT, n_out_ch, x, 1) =                                        \
                 OUTPUT_AT(OutputT, n_out_ch, x, 2);                                     \
                                                                                         \
+            /* bottom */                                                                \
             OUTPUT_AT(OutputT, n_out_ch, x, height-1) =                                 \
             OUTPUT_AT(OutputT, n_out_ch, x, height-2) =                                 \
-                OUTPUT_AT(OutputT, n_out_ch, x, height-3);                              \
+            OUTPUT_AT(OutputT, n_out_ch, x, height-3) =                                 \
+                OUTPUT_AT(OutputT, n_out_ch, x, height-4);                              \
         }                                                                               \
                                                                                         \
-        /* left and right */                                                            \
-        for (unsigned y = 2; y <= height-3; y++)                                        \
+        for (unsigned y = 2; y <= height-4; y++)                                        \
         {                                                                               \
+            /* left */                                                                  \
             OUTPUT_AT(OutputT, n_out_ch, 0, y) =                                        \
             OUTPUT_AT(OutputT, n_out_ch, 1, y) =                                        \
                 OUTPUT_AT(OutputT, n_out_ch, 2, y);                                     \
                                                                                         \
+            /* right */                                                                 \
             OUTPUT_AT(OutputT, n_out_ch, width-1, y) =                                  \
             OUTPUT_AT(OutputT, n_out_ch, width-2, y) =                                  \
-                OUTPUT_AT(OutputT, n_out_ch, width-3, y);                               \
+            OUTPUT_AT(OutputT, n_out_ch, width-3, y) =                                  \
+                OUTPUT_AT(OutputT, n_out_ch, width-4, y);                               \
         }                                                                               \
     }                                                                                   \
 } while (0)
