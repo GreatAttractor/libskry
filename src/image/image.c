@@ -460,6 +460,8 @@ void SKRY_convert_pix_fmt_of_subimage_into(
 
     if (src_pix_fmt > SKRY_PIX_CFA_MIN && src_pix_fmt < SKRY_PIX_CFA_MAX)
     {
+        src_pix_fmt = translate_CFA_pattern(src_pix_fmt, src_pos.x & 1, src_pos.y & 1);
+
         if (BITS_PER_CHANNEL[src_pix_fmt] == 8
             && dest_pix_fmt == SKRY_PIX_MONO8)
         {

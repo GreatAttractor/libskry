@@ -69,4 +69,8 @@ void demosaic_16_as_mono8(uint16_t *input, unsigned width, unsigned height,
                           enum SKRY_CFA_pattern CFA_pattern,
                           enum SKRY_demosaic_method method);
 
+/// Returns 'pattern' translated by (dx, dy), where dx, dy are 0 or 1
+enum SKRY_CFA_pattern translate_CFA_pattern(enum SKRY_CFA_pattern pattern,
+                                            unsigned dx, unsigned dy);
+
 #endif // LIB_STACKISTRY_DEMOSAIC_HEADER

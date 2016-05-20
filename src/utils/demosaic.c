@@ -513,3 +513,33 @@ void demosaic_16_as_mono8(uint16_t *input, unsigned width, unsigned height, ptrd
     else
         DEMOSAIC(uint16_t, uint8_t, HQLINEAR, MONO8_from_RGB16, 1, 0xFFFF);
 }
+
+enum SKRY_CFA_pattern translate_CFA_pattern(enum SKRY_CFA_pattern pattern,
+                                            unsigned dx, unsigned dy)
+{
+    static
+    const enum SKRY_CFA_pattern pattern_translation_LUT[SKRY_CFA_MAX][2][2] =
+    {
+        [SKRY_CFA_BGGR][0][0] = SKRY_CFA_BGGR,
+        [SKRY_CFA_BGGR][1][0] = SKRY_CFA_GBRG,
+        [SKRY_CFA_BGGR][0][1] = SKRY_CFA_GRBG,
+        [SKRY_CFA_BGGR][1][1] = SKRY_CFA_RGGB,
+
+        [SKRY_CFA_GBRG][0][0] = SKRY_CFA_GBRG,
+        [SKRY_CFA_GBRG][1][0] = SKRY_CFA_BGGR,
+        [SKRY_CFA_GBRG][0][1] = SKRY_CFA_RGGB,
+        [SKRY_CFA_GBRG][1][1] = SKRY_CFA_GRBG,
+
+        [SKRY_CFA_GRBG][0][0] = SKRY_CFA_GRBG,
+        [SKRY_CFA_GRBG][1][0] = SKRY_CFA_RGGB,
+        [SKRY_CFA_GRBG][0][1] = SKRY_CFA_BGGR,
+        [SKRY_CFA_GRBG][1][1] = SKRY_CFA_GBRG,
+
+        [SKRY_CFA_RGGB][0][0] = SKRY_CFA_RGGB,
+        [SKRY_CFA_RGGB][1][0] = SKRY_CFA_GRBG,
+        [SKRY_CFA_RGGB][0][1] = SKRY_CFA_GBRG,
+        [SKRY_CFA_RGGB][1][1] = SKRY_CFA_BGGR
+    };
+
+    return pattern_translation_LUT[pattern][dx][dy];
+}

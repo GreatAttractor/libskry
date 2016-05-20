@@ -80,8 +80,10 @@ enum SKRY_result SKRY_get_palette(const SKRY_Image *img, struct SKRY_palette *pa
 /// Returned image has lines stored top-to-bottom, no padding
 SKRY_Image *SKRY_get_img_copy(const SKRY_Image *img);
 
-/** \brief Copies (with cropping or padding) a fragment of image to another. There is no scaling.
-           Pixel formats of source and destination must be the same. 'src_img' must not equal 'dest_img'. */
+/** Copies (with cropping or padding) a fragment of image to another. There is no scaling.
+    Pixel formats of source and destination must be the same. 'src_img' must not equal 'dest_img'.
+    NOTE: care must be taken if pixel format is one of SKRY_CFA. The caller may need to adjust
+    the CFA_pattern if source and destination X, Y offets are not simultaneously odd/even. */
 void SKRY_resize_and_translate(
     const SKRY_Image *src_img,
     SKRY_Image *dest_img,
@@ -101,6 +103,8 @@ SKRY_Image *SKRY_convert_pix_fmt(const SKRY_Image *src_img,
                                  enum SKRY_demosaic_method demosaic_method);
 
 /// Returned image has lines stored top-to-bottom, no padding
+/** If 'src_img' is in raw color format, the CFA pattern will be
+    appropriately adjusted depending on 'x0', 'y0'. */
 SKRY_Image *SKRY_convert_pix_fmt_of_subimage(
         const SKRY_Image *src_img, enum SKRY_pixel_format dest_pix_fmt,
         int x0, int y0, unsigned width, unsigned height,
@@ -108,7 +112,8 @@ SKRY_Image *SKRY_convert_pix_fmt_of_subimage(
         enum SKRY_demosaic_method demosaic_method);
 
 /// Converts a fragment of 'src_img' to 'dest_img's pixel format and writes it into 'dest_img'
-/** Cropping is performed if necessary. */
+/** Cropping is performed if necessary. If 'src_img' is in raw color format, the CFA pattern
+    will be appropriately adjusted depending on 'x0', 'y0'. */
 void SKRY_convert_pix_fmt_of_subimage_into(
         const SKRY_Image *src_img,
         SKRY_Image       *dest_img,
@@ -148,9 +153,9 @@ enum SKRY_result SKRY_save_image(const SKRY_Image *img, const char *file_name,
 size_t SKRY_get_img_byte_count(const SKRY_Image *img);
 
 /// Treat the image as containing raw color data (pixel format will be updated)
-/** Can be used only if the image is 8- or 16-bit mono. Only pixel format is updated,
-    the pixel data is unchanged. To demosaic, call this function and then use one
-    of the pixel format conversion functions. */
+/** Can be used only if the image is 8- or 16-bit mono or raw color.
+    Only pixel format is updated, the pixel data is unchanged. To demosaic,
+    call this function and then use one of the pixel format conversion functions. */
 void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern);
 
 #endif // LIB_STACKISTRY_IMAGE_HEADER
