@@ -161,6 +161,13 @@ void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
 
     if (img_pool->num_bytes + img_bytes <= img_pool->capacity)
     {
+        if (data->images[img_index])
+        {
+            LOG_MSG(SKRY_LOG_IMG_POOL, "Replacing and freeing image %p (index %zu in img. seq. %p) in img. pool %p.",
+                    (void *)data->images[img_index], img_index, (void *)data->img_seq, (void *)img_pool);
+            img_pool->num_bytes -= SKRY_get_img_byte_count(data->images[img_index]);
+            SKRY_free_image(data->images[img_index]);
+        }
         data->images[img_index] = img;
         img_pool->num_bytes += img_bytes;
         mark_as_MRU(img_pool, img_seq_node);
