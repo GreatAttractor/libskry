@@ -70,7 +70,9 @@ SKRY_Image *SKRY_get_curr_img(const struct SKRY_img_sequence *img_seq,
     {
         enum SKRY_pixel_format pix_fmt = SKRY_get_img_pix_fmt(img);
         if (img_seq->CFA_pattern != SKRY_CFA_NONE &&
-            (pix_fmt == SKRY_PIX_MONO8 || pix_fmt == SKRY_PIX_MONO16))
+            (pix_fmt == SKRY_PIX_MONO8 ||
+             pix_fmt == SKRY_PIX_MONO16 ||
+             pix_fmt > SKRY_PIX_CFA_MIN && pix_fmt < SKRY_PIX_CFA_MAX))
         {
             SKRY_reinterpret_as_CFA(img, img_seq->CFA_pattern);
         }
@@ -88,7 +90,8 @@ enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_
     {
         if (img_seq->CFA_pattern != SKRY_CFA_NONE && pix_fmt)
         {
-            if (*pix_fmt == SKRY_PIX_MONO8)
+            if (*pix_fmt == SKRY_PIX_MONO8 ||
+                *pix_fmt > SKRY_PIX_CFA_MIN && *pix_fmt < SKRY_PIX_CFA_MAX && BITS_PER_CHANNEL[*pix_fmt] == 8)
                 switch (img_seq->CFA_pattern)
                 {
                     case SKRY_CFA_BGGR: *pix_fmt = SKRY_PIX_CFA_BGGR8; break;
@@ -97,7 +100,8 @@ enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_
                     case SKRY_CFA_RGGB: *pix_fmt = SKRY_PIX_CFA_RGGB8; break;
                     default: break;
                 }
-            else if (*pix_fmt == SKRY_PIX_MONO16)
+            else if (*pix_fmt == SKRY_PIX_MONO16 ||
+                     *pix_fmt > SKRY_PIX_CFA_MIN && *pix_fmt < SKRY_PIX_CFA_MAX && BITS_PER_CHANNEL[*pix_fmt] == 16)
                 switch (img_seq->CFA_pattern)
                 {
                     case SKRY_CFA_BGGR: *pix_fmt = SKRY_PIX_CFA_BGGR16; break;
@@ -138,7 +142,8 @@ SKRY_Image *SKRY_get_img_by_index(const struct SKRY_img_sequence *img_seq, size_
     {
         enum SKRY_pixel_format pix_fmt = SKRY_get_img_pix_fmt(img);
         if (img_seq->CFA_pattern != SKRY_CFA_NONE &&
-            (pix_fmt == SKRY_PIX_MONO8 || pix_fmt == SKRY_PIX_MONO16))
+            (pix_fmt == SKRY_PIX_MONO8 || pix_fmt == SKRY_PIX_MONO16 ||
+             pix_fmt > SKRY_PIX_CFA_MIN && pix_fmt < SKRY_PIX_CFA_MAX))
         {
             SKRY_reinterpret_as_CFA(img, img_seq->CFA_pattern);
         }

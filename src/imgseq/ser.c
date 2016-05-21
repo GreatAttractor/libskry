@@ -297,7 +297,11 @@ struct SKRY_img_sequence *init_SER(const char *file_name,
     uint32_t color_id = cnd_swap_32(fheader.color_id, is_machine_b_e);
     if (color_id != SER_MONO &&
         color_id != SER_RGB &&
-        color_id != SER_BGR)
+        color_id != SER_BGR &&
+        color_id != SER_BAYER_BGGR &&
+        color_id != SER_BAYER_GBRG &&
+        color_id != SER_BAYER_GRBG &&
+        color_id != SER_BAYER_RGGB)
     {
         LOG_MSG(SKRY_LOG_SER, "Unsupported color format: %s", SER_color_format_str[color_id]);
         FAIL(SKRY_SER_UNSUPPORTED_FORMAT);
@@ -323,6 +327,31 @@ struct SKRY_img_sequence *init_SER(const char *file_name,
             data->pix_fmt = (bits_per_channel <= 8 ?
                                 SKRY_PIX_RGB8 :
                                 SKRY_PIX_RGB16);
+            break;
+
+        case SER_BAYER_BGGR:
+            data->pix_fmt = (bits_per_channel <= 8 ?
+                                SKRY_PIX_CFA_BGGR8 :
+                                SKRY_PIX_CFA_BGGR16);
+            break;
+
+        case SER_BAYER_GBRG:
+            data->pix_fmt = (bits_per_channel <= 8 ?
+                                SKRY_PIX_CFA_GBRG8 :
+                                SKRY_PIX_CFA_GBRG16);
+            break;
+
+        case SER_BAYER_GRBG:
+            data->pix_fmt = (bits_per_channel <= 8 ?
+                                SKRY_PIX_CFA_GRBG8 :
+                                SKRY_PIX_CFA_GRBG16);
+            break;
+
+        case SER_BAYER_RGGB:
+            data->pix_fmt = (bits_per_channel <= 8 ?
+                                SKRY_PIX_CFA_RGGB8 :
+                                SKRY_PIX_CFA_RGGB16);
+            break;
     }
 
     data->little_endian_data = (SER_LITTLE_ENDIAN == cnd_swap_32(fheader.little_endian, is_machine_b_e));
