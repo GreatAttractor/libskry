@@ -221,7 +221,9 @@ struct SKRY_stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align
     }
 
     enum SKRY_pixel_format stack_pix_fmt =
-        (NUM_CHANNELS[img_seq_pix_fmt] == 1 ? SKRY_PIX_MONO32F : SKRY_PIX_RGB32F);
+        (NUM_CHANNELS[img_seq_pix_fmt] == 1 && (img_seq_pix_fmt < SKRY_PIX_CFA_MIN || img_seq_pix_fmt > SKRY_PIX_CFA_MAX) ?
+            SKRY_PIX_MONO32F :
+            SKRY_PIX_RGB32F);
     stacking->image_stack = SKRY_new_image(intersection.width, intersection.height, stack_pix_fmt, 0, 1);
     FAIL_ON_NULL(stacking->image_stack);
 
