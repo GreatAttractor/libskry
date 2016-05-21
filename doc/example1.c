@@ -10,6 +10,10 @@
         gcc -std=c99 example1.c -lskry -lgomp -L ../bin -I ../include
 */
 
+// Needed for MinGW, so that is uses its own string formatting functions.
+// Otherwise, Microsoft runtime DLL would be used, which does not support %zu.
+#define __USE_MINGW_ANSI_STDIO 1
+
 #include <stddef.h>
 #include <stdio.h>
 #include <skry/skry.h>
