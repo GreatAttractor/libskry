@@ -265,6 +265,8 @@ struct SKRY_img_sequence *init_SER(const char *file_name,
     struct SKRY_img_sequence *img_seq = malloc(sizeof(*img_seq));
     FAIL_ON_NULL(img_seq);
 
+    *img_seq = (struct SKRY_img_sequence) { 0 };
+
     img_seq->data = malloc(sizeof(struct SER_data));
     FAIL_ON_NULL(img_seq->data);
 
