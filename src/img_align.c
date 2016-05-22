@@ -438,9 +438,9 @@ struct SKRY_point SKRY_suggest_anchor_pos(
     struct SKRY_point result = { .x = width/2, .y = height/2 };
     SKRY_quality_t best_qual = 0;
 
-    // Consider only the middle 1/2 of 'image'
-    for (unsigned y = height/4; y < 3*height/4 - ref_block_size; y += ref_block_size/3)
-        for (unsigned x = width/4; x < 3*width/4 - ref_block_size; x += ref_block_size/3)
+    // Consider only the middle 3/4 of 'image'
+    for (unsigned y = height/8; y < 7*height/8 - ref_block_size; y += ref_block_size/3)
+        for (unsigned x = width/8; x < 7*width/8 - ref_block_size; x += ref_block_size/3)
         {
             // Reject locations at the limb of an overexposed (fully white) disc with little (<20%)
             // prominence details (i.e. pixels above the "placement threshold").
