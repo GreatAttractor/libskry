@@ -42,7 +42,7 @@ If Make cannot be used, simply compile all *.c files and link them into a librar
 Supported input formats:
 
 - AVI: uncompressed DIB (mono or RGB)
-- SER: mono or RGB
+- SER: mono or RGB, raw color
 - BMP: 8-, 24- and 32-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
 
@@ -51,6 +51,7 @@ Supported output formats:
 - BMP: 8- and 24-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
 
+AVI files up to 2 GiB are supported. In case of 64-bit builds of libskry, there are no size limits for the remaining formats (other than the available memory). The user can choose to treat mono videos as raw color (enables demosaicing).
 
 ----------------------------------------
 ## 4. Principles of operation
