@@ -24,6 +24,7 @@ File description:
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -288,7 +289,8 @@ struct SKRY_stacking *SKRY_free_stacking(struct SKRY_stacking *stacking)
 
 /// Performs linear interpolation in 'img' (which has to be 32-bit floating point)
 static
-float interpolate_pixel_value(const SKRY_Image *img, unsigned img_width, unsigned img_height,
+float interpolate_pixel_value(const float *pixels, ptrdiff_t line_stride_in_bytes,
+                              unsigned img_width, unsigned img_height,
                               float x, float y, size_t channel, size_t bytes_per_pix)
 {
     if (x < 0 || x >= img_width-1 || y < 0 || y >= img_height-1)
@@ -299,8 +301,8 @@ float interpolate_pixel_value(const SKRY_Image *img, unsigned img_width, unsigne
     float ty = modf(y, &y0d);
     int x0 = (int)x0d, y0 = (int)y0d;
 
-    float * restrict line_lo = SKRY_get_line(img, y0);
-    float * restrict line_hi = SKRY_get_line(img, y0+1);
+    float * restrict line_lo = (float *)((uint8_t *)pixels + y0*line_stride_in_bytes);
+    float * restrict line_hi = (float *)((uint8_t *)line_lo + line_stride_in_bytes);
     float v00 = ((float *)((char *)line_lo + x0    *bytes_per_pix))[channel],
           v10 = ((float *)((char *)line_lo + (x0+1)*bytes_per_pix))[channel],
           v01 = ((float *)((char *)line_hi + x0    *bytes_per_pix))[channel],
@@ -441,6 +443,21 @@ enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
     }
 
     // Second, stack the triangles
+    float * restrict src_pixels = SKRY_get_line(img, 0);
+    ptrdiff_t src_stride = SKRY_get_line_stride_in_bytes(img);
+
+    float * restrict flatf_pixels = 0;
+    ptrdiff_t flatf_stride = 0;
+    if (stacking->flatfield)
+    {
+        flatf_pixels = SKRY_get_line(stacking->flatfield, 0);
+        flatf_stride = SKRY_get_line_stride_in_bytes(stacking->flatfield);
+    }
+
+    float * restrict stack_pixels = SKRY_get_line(stacking->image_stack, 0);
+    ptrdiff_t stack_stride = SKRY_get_line_stride_in_bytes(stacking->image_stack);
+
+    #pragma omp parallel for
     for (size_t i = 0; i < DA_SIZE(stacking->curr_step_stacked_triangles); i++)
     {
         size_t tri_idx = stacking->curr_step_stacked_triangles.data[i];
@@ -485,7 +502,7 @@ enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
                 for (size_t ch = 0; ch < num_channels; ch++)
                 {
                     float src_val =
-                        interpolate_pixel_value(img, width, height,
+                        interpolate_pixel_value(src_pixels, src_stride, width, height,
                                                 srcx + intersection.x + alignment_ofs.x,
                                                 srcy + intersection.y + alignment_ofs.y,
                                                 ch, bytes_per_pix);
@@ -494,10 +511,10 @@ enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
                     {
                         // 'stacking->flatfield' contains inverted flat-field values,
                         // so we multiply instead of dividing
-                        src_val *= ((float *)SKRY_get_line(stacking->flatfield, ffy))[ffx];
+                        src_val *= ((float*)((uint8_t *)flatf_pixels + ffy*flatf_stride))[ffx];
                     }
 
-                    ((float *)SKRY_get_line(stacking->image_stack, stp->y))[num_channels*stp->x + ch] += src_val;
+                    ((float *)((uint8_t *)stack_pixels + stack_stride*stp->y))[num_channels*stp->x + ch] += src_val;
                 }
 
                 stacking->added_img_count[stp->x + stp->y*intersection.width] += 1;
