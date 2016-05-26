@@ -42,7 +42,7 @@ If Make cannot be used, simply compile all *.c files and link them into a librar
 Supported input formats:
 
 - AVI: uncompressed DIB (mono or RGB)
-- SER: mono or RGB
+- SER: mono, RGB, raw color
 - BMP: 8-, 24- and 32-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
 
@@ -51,6 +51,7 @@ Supported output formats:
 - BMP: 8- and 24-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
 
+AVI files up to 2 GiB are supported. In case of 64-bit builds of libskry, there are no size limits for the remaining formats (other than the available memory). The user can choose to treat mono videos as raw color (enables demosaicing).
 
 ----------------------------------------
 ## 4. Principles of operation
@@ -76,7 +77,7 @@ Processing of a raw input image sequence consists of the following steps:
 
 To use libskry's C interface, add the following:
 
-```
+```C
 #include <skry/skry.h>
 ```
 
@@ -84,7 +85,7 @@ To use libskry's C interface, add the following:
 
 To use the C++ wrappers:
 
-```
+```C++
 #include <skry/skry_cpp.hpp>
 ```
 
@@ -108,7 +109,7 @@ All functions that satisfy both the conditions:
 
 treat the image index as referring only to the active images subset of the associated image sequence. E.g. when an image sequence contains 500 images, of which only 300 are active, the function:
 
-```
+```C
 SKRY_quality_t SKRY_get_area_quality(const SKRY_QualityEstimation *qual_est,
                                      size_t area_idx, size_t img_idx);
 ```
@@ -129,7 +130,7 @@ the ``unique_ptr``'s deleter is a matching ``SKRY_free_`` function.
 The ``pimpl`` may be null; all classes all boolean-testable (see ``ISkryPtrWrapper``)
 to detect it, e.g.:
 
-```
+```C++
 // 'imgCopy' may contain a null 'pimpl' if copying failed due to lack of free memory
 c_Image imgCopy = img;
 
