@@ -190,25 +190,27 @@ int main(int argc, char *argv[])
     // The stack is a mono or RGB image (depending on 'img_seq')
     // with 32-bit floating point pixels, so we need to convert it
     // before saving as a 16-bit TIFF.
-    SKRY_Image *img_stack_mono16 = SKRY_convert_pix_fmt(
-                                    SKRY_get_image_stack(stacking),
-                                    SKRY_PIX_RGB16, SKRY_DEMOSAIC_DONT_CARE);
+    SKRY_Image *img_stack_16 = SKRY_convert_pix_fmt(
+                                 SKRY_get_image_stack(stacking),
+                                 SKRY_PIX_RGB16, SKRY_DEMOSAIC_DONT_CARE);
 
-    if (!img_stack_mono16)
+    if (!img_stack_16)
     {
+        FREE_OBJS();
         printf("Failed to allocate output image.\n");
         return 1;
     }
 
     if (SKRY_SUCCESS !=
-            (result = SKRY_save_image(img_stack_mono16, "sun01_stack.tif", SKRY_TIFF_16)))
+            (result = SKRY_save_image(img_stack_16, "sun01_stack.tif", SKRY_TIFF_16)))
     {
+        FREE_OBJS();
         printf("Error saving output image: %s",
                SKRY_get_error_message(result));
         return 1;
     }
 
-    SKRY_free_image(img_stack_mono16);
+    SKRY_free_image(img_stack_16);
 
     FREE_OBJS();
 

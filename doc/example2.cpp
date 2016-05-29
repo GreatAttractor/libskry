@@ -162,18 +162,18 @@ int main(int argc, char *argv[])
     // The stack is a mono or RGB image (depending on 'imgSeq')
     // with 32-bit floating point pixels, so we need to convert it
     // before saving as a 16-bit TIFF.
-    libskry::c_Image imgStackMono16 =
+    libskry::c_Image imgStack16 =
         libskry::c_Image::ConvertPixelFormat(stacking.GetFinalImageStack(),
                                              SKRY_PIX_RGB16);
 
-    if (!imgStackMono16)
+    if (!imgStack16)
     {
         std::cout << "Failed to allocate output image: "
                   << SKRY_get_error_message(result) << std::endl;
         return 1;
     }
 
-    if (SKRY_SUCCESS != (result = imgStackMono16.Save("sun01_stack.tif", SKRY_TIFF_16)))
+    if (SKRY_SUCCESS != (result = imgStack16.Save("sun01_stack.tif", SKRY_TIFF_16)))
     {
         std::cout << "Error saving output image: "
                   << SKRY_get_error_message(result) << std::endl;

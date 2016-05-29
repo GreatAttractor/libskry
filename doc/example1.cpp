@@ -92,11 +92,11 @@ int main(int argc, char *argv[])
     // The stack is a mono or RGB image (depending on 'img_seq')
     // with 32-bit floating point pixels, so we need to convert it
     // before saving as a 16-bit TIFF.
-    libskry::c_Image imgStackMono16 =
+    libskry::c_Image imgStack16 =
         libskry::c_Image::ConvertPixelFormat(stacking.GetFinalImageStack(),
                                              SKRY_PIX_RGB16);
 
-    imgStackMono16.Save("sun01_stack.tif", SKRY_TIFF_16);
+    imgStack16.Save("sun01_stack.tif", SKRY_TIFF_16);
 
     SKRY_deinitialize();
     return 0;
