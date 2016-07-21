@@ -152,18 +152,21 @@ enum AVI_pixel_format
 {
     AVI_PIX_DIB_MIN,
 
-    AVI_PIX_DIB_RGB8,  ///< DIB, RGB 8-bit
-    AVI_PIX_DIB_PAL8,  ///< DIB, 256-color 8-bit RGB palette
-    AVI_PIX_DIB_MONO8, ///< DIB, 256-color grayscale palette
+        AVI_PIX_DIB_RGB8,  ///< DIB, RGB 8-bit
+        AVI_PIX_DIB_PAL8,  ///< DIB, 256-color 8-bit RGB palette
+        AVI_PIX_DIB_MONO8, ///< DIB, 256-color grayscale palette
 
     AVI_PIX_DIB_MAX,
+
+    AVI_PIX_Y800, /// 8 bits per pixel, luminance only
 };
 
 const char *AVI_pixel_format_str[] =
 {
     [AVI_PIX_DIB_RGB8]  = "DIB/RGB 8-bit",
     [AVI_PIX_DIB_PAL8]  = "DIB/8-bit palette",
-    [AVI_PIX_DIB_MONO8] = "DIB/8-bit grayscale"
+    [AVI_PIX_DIB_MONO8] = "DIB/8-bit grayscale",
+    [AVI_PIX_Y800]      = "Y800 (8-bit grayscale)"
 };
 
 #define IS_DIB(pix_fmt)  ((pix_fmt) > AVI_PIX_DIB_MIN && (pix_fmt) < AVI_PIX_DIB_MAX)
@@ -172,7 +175,8 @@ enum SKRY_pixel_format AVI_to_SKRY_pix_fmt[] =
 {
     [AVI_PIX_DIB_MONO8] = SKRY_PIX_MONO8,
     [AVI_PIX_DIB_RGB8] = SKRY_PIX_RGB8,
-    [AVI_PIX_DIB_PAL8] = SKRY_PIX_PAL8
+    [AVI_PIX_DIB_PAL8] = SKRY_PIX_PAL8,
+    [AVI_PIX_Y800]     = SKRY_PIX_MONO8
 };
 
 struct AVI_data
@@ -369,13 +373,16 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
             | |_____
             |_________
             ...
-            (ignored; possibly 'JUNK' chunks)
+            (ignored; possibly 'JUNK' chunks, LIST:INFO)
             ...
             LIST: movi
             | ...
             | (frames)
             | ...
             |_________
+            ...
+            (ignored)
+            ...
             idx1
               ...
               (index entries)                // AVI_old_index
@@ -454,7 +461,7 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
     }
 
     img_seq->num_images = cnd_swap_32(avi_header.total_frames, is_machine_b_e);
-    // This may be zero; if this is the case, we'll use the stream  header's length field
+    // This may be zero; if this is the case, we'll use the stream  header's 'length' field
 
     avi_data->width = cnd_swap_32(avi_header.width, is_machine_b_e);
     avi_data->height = cnd_swap_32(avi_header.height, is_machine_b_e);
@@ -501,15 +508,18 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
         FAIL(SKRY_AVI_MALFORMED_FILE);
     }
 
-    if (!FCC_COMPARE(stream_header.fcc_handler, "DIB "))
+    if (!FCC_COMPARE(stream_header.fcc_handler, "DIB ") &&
+        !FCC_COMPARE(stream_header.fcc_handler, "Y800") &&
+        !FCC_COMPARE(stream_header.fcc_handler, "Y8  "))
     {
         LOG_MSG(SKRY_LOG_AVI, "Unsupported video FCC: \"%c%c%c%c\".",
                 stream_header.fcc_handler[0],
                 stream_header.fcc_handler[1],
                 stream_header.fcc_handler[2],
                 stream_header.fcc_handler[3]);
-        FAIL(SKRY_AVI_MALFORMED_FILE);
+        FAIL(SKRY_AVI_UNSUPPORTED_FORMAT);
     }
+    int is_DIB = FCC_COMPARE(stream_header.fcc_handler, "DIB ");
 
     if (img_seq->num_images == 0)
     {
@@ -536,14 +546,14 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
     bmp_hdr.planes = cnd_swap_16(bmp_hdr.planes, is_machine_b_e);
     bmp_hdr.clr_used = cnd_swap_32(bmp_hdr.clr_used, is_machine_b_e);
 
-    if (bmp_hdr.compression != BI_BITFIELDS && bmp_hdr.compression != BI_RGB ||
+    if (is_DIB && bmp_hdr.compression != BI_BITFIELDS && bmp_hdr.compression != BI_RGB ||
         bmp_hdr.planes != 1 ||
         bmp_hdr.bit_count != 8 && bmp_hdr.bit_count != 24)
     {
-        LOG_MSG(SKRY_LOG_AVI, "Unsupported DIB format.");
+        LOG_MSG(SKRY_LOG_AVI, "Unsupported video format.");
         FAIL(SKRY_AVI_UNSUPPORTED_FORMAT);
     }
-    if (bmp_hdr.bit_count == 8)
+    if (is_DIB && bmp_hdr.bit_count == 8)
     {
         struct BMP_palette palette;
 
@@ -575,8 +585,10 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
 
         avi_data->pix_fmt = is_mono_8 ? AVI_PIX_DIB_MONO8 : AVI_PIX_DIB_PAL8;
     }
-    else
+    else if (is_DIB && bmp_hdr.bit_count == 24)
         avi_data->pix_fmt = AVI_PIX_DIB_RGB8;
+    else
+        avi_data->pix_fmt = AVI_PIX_Y800;
 
     // Jump to the location immediately after 'hdrl'
 
