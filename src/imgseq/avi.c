@@ -52,21 +52,24 @@ File description:
                                && (fcc)[2] == string[2] \
                                && (fcc)[3] == string[3])
 
+/// Four Character Code (FCC)
+typedef uint8_t fourcc_t[4];
+
 #pragma pack(push)
 
 #pragma pack(1)
 struct AVI_file_header
 {
-    uint8_t riff[4];
+    fourcc_t riff;
     uint32_t file_size;
-    uint8_t avi[4];
+    fourcc_t avi;
 };
 
 #pragma pack(1)
 struct AVI_stream_header
 {
-    uint8_t fcc_type[4];
-    uint8_t fcc_handler[4];
+    fourcc_t fcc_type;
+    fourcc_t fcc_handler;
     uint32_t flags;
     uint16_t priority;
     uint16_t language;
@@ -99,15 +102,15 @@ typedef struct {
 #pragma pack(1)
 struct AVI_list
 {
-    uint8_t list[4];
+    fourcc_t list; // contains "LIST"
     uint32_t list_size; // does not include 'list' and 'list_type'
-    uint8_t list_type[4];
+    fourcc_t list_type;
 };
 
 #pragma pack(1)
 struct AVI_chunk
 {
-    uint8_t ck_id[4];
+    fourcc_t ck_id;
     uint32_t ck_size; // does not include 'ck_id' and 'ck_size'
 };
 
@@ -115,7 +118,7 @@ struct AVI_chunk
 #pragma pack(1)
 struct AVI_fragment
 {
-    uint8_t fcc[4];
+    fourcc_t fcc;
     uint32_t size;
 };
 
@@ -138,7 +141,7 @@ struct AVI_main_header
 #pragma pack(1)
 struct AVI_old_index
 {
-    uint8_t chunk_id[4];
+    fourcc_t chunk_id;
     uint32_t flags;
     // Offset of frame contents counted from the beginning
     // of 'movi' list's 'list_type' field
@@ -251,7 +254,7 @@ struct SKRY_image *AVI_get_img_by_index(const struct SKRY_img_sequence *img_seq,
     if (IS_DIB(data->pix_fmt))
         line_byte_count = UP4MULT(line_byte_count);
 
-    if (!FCC_COMPARE(chunk.ck_id, "00db")
+    if (!FCC_COMPARE(chunk.ck_id, "00db") && !FCC_COMPARE(chunk.ck_id, "00dc")
         || chunk.ck_size != line_byte_count * data->height)
     {
         LOG_MSG(SKRY_LOG_AVI, "Invalid frame %zu.", index);
@@ -262,7 +265,9 @@ struct SKRY_image *AVI_get_img_by_index(const struct SKRY_img_sequence *img_seq,
     for (unsigned y = 0; y < data->height; y++)
     {
         fread(line, line_byte_count, 1, data->file);
-        uint8_t *img_line = SKRY_get_line(img, SKRY_get_img_height(img) - y - 1);
+        uint8_t *img_line =
+            SKRY_get_line(img, IS_DIB(data->pix_fmt) ? SKRY_get_img_height(img) - y - 1 // line order in a DIB is reversed
+                                                     : y);
 
         if (data->pix_fmt == AVI_PIX_DIB_RGB8)
         {
@@ -611,17 +616,32 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
 
         if (FCC_COMPARE(fragment.fcc, "LIST"))
         {
-            // Found a list - should be the 'movi' list; it will be
-            // re-read and verified after the current 'while' loop
-            fseek(avi_data->file, stored_pos, SEEK_SET);
-            break;
+            fourcc_t list_type;
+            if (1 != fread(&list_type, sizeof(list_type), 1, avi_data->file))
+            {
+                LOG_MSG(SKRY_LOG_AVI, "Incomplete LIST chunk.");
+                FAIL(SKRY_AVI_MALFORMED_FILE);
+            }
+
+            // Found a list; if it is the 'movi' list, move the file pointer back;
+            // the list will be re-read after the current 'while' loop.
+            if (FCC_COMPARE(list_type, "movi"))
+            {
+                fseek(avi_data->file, stored_pos, SEEK_SET);
+                break;
+            }
+            else
+            {
+                // Not the 'movi' list; skip it.
+                // Must rewind back by length of the 'size' field,
+                // because in a list it is not counted in 'size'.
+                fseek(avi_data->file, -(int)sizeof(fragment.size), SEEK_CUR);
+            }
         }
-        else
-        {
-            // Skip the current fragment, whatever it is
-            fseek(avi_data->file, cnd_swap_32(fragment.size, is_machine_b_e),
-                  SEEK_CUR);
-        }
+
+        // Skip the current fragment, whatever it is
+        fseek(avi_data->file, cnd_swap_32(fragment.size, is_machine_b_e), SEEK_CUR);
+
     } while (1);
 
     if (1 != fread(&list, sizeof(list), 1, avi_data->file))
@@ -676,7 +696,8 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
            && valid_entry_counter < img_seq->num_images)
     {
         // Ignore bogus entries (they may have "7Fxx" as their ID)
-        if (FCC_COMPARE(curr_entry->chunk_id, "00db"))
+        if (FCC_COMPARE(curr_entry->chunk_id, "00db") ||
+            FCC_COMPARE(curr_entry->chunk_id, "00dc"))
         {
             if (cnd_swap_32(curr_entry->frame_size, is_machine_b_e) != line_byte_count * avi_data->height)
             {
@@ -695,7 +716,8 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
     // Check if frame offsets in the index are actually absolute file offsets
     fseek(avi_data->file, avi_data->frame_offsets[0] - frame_chunks_start_ofs, SEEK_SET);
     READ_CHUNK("Could not read first frame.");
-    if (FCC_COMPARE(chunk.ck_id, "00db") && chunk.ck_size == line_byte_count*avi_data->height)
+    if ((FCC_COMPARE(chunk.ck_id, "00db") || FCC_COMPARE(chunk.ck_id, "00dc"))
+        && chunk.ck_size == line_byte_count*avi_data->height)
     {
         // Indeed, index frame offsets are absolute; must correct the values in `avi_data`
         for (size_t i = 0; i < img_seq->num_images; i++)
