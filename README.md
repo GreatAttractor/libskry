@@ -4,7 +4,7 @@
 
 Copyright (C) 2016 Filip Szczerek (ga.software@yahoo.com)
 
-version 0.0.3 (2016-05-22)
+version 0.1.1 (2016-08-05)
 
 *This library comes with ABSOLUTELY NO WARRANTY. This is free software, licensed under GNU General Public License v3 or any later version and you are welcome to redistribute it under certain conditions. See the LICENSE file for details.*
 
@@ -41,7 +41,7 @@ If Make cannot be used, simply compile all *.c files and link them into a librar
 
 Supported input formats:
 
-- AVI: uncompressed DIB (mono or RGB)
+- AVI: uncompressed DIB (mono or RGB), Y8/Y800
 - SER: mono, RGB, raw color
 - BMP: 8-, 24- and 32-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
@@ -149,6 +149,10 @@ else
 ## 6. Change log
 
 ```
+0.1.1 (2016-08-05)
+  New features:
+    - Support for Y8/Y800 AVI files
+
 0.0.3 (2016-05-22)
   New features:
     - Demosaicing of raw color images
