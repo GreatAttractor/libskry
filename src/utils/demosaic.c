@@ -542,7 +542,7 @@ enum SKRY_CFA_pattern translate_CFA_pattern(enum SKRY_CFA_pattern pattern,
         [SKRY_CFA_RGGB][1][1] = SKRY_CFA_BGGR
     };
 
-    assert(pattern > 0 && pattern < SKRY_CFA_MAX);
+    assert(pattern >= 0 && pattern < SKRY_CFA_MAX);
 
     return pattern_translation_LUT[pattern][dx][dy];
 }
