@@ -359,6 +359,10 @@ namespace libskry
 
         c_ImageAlignment(
             c_ImageSequence &imgSeq,
+            enum SKRY_img_alignment_method method,
+
+            // Parameters used if method==SKRY_IMG_ALGN_ANCHORS ------------
+
             /** Coords relative to the first image's origin;
                 if empty, anchors will be placed automatically. */
             const std::vector<struct SKRY_point> &anchors,
@@ -367,8 +371,12 @@ namespace libskry
             /// Min. image brightness that an anchor point can be placed at (values: [0; 1])
             /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
             float placementBrightnessThreshold,
+
+            // -------------------------------------------------------------
+
             enum SKRY_result *result = nullptr ///< If not null, receives operation result
-            ): c_ImageAlignment(SKRY_init_img_alignment(imgSeq.pimpl.get(), anchors.size(),
+            )
+            : c_ImageAlignment(SKRY_init_img_alignment(imgSeq.pimpl.get(), method, anchors.size(),
                              anchors.data(), blockRadius, searchRadius,
                              placementBrightnessThreshold, result))
         { }
@@ -396,6 +404,12 @@ namespace libskry
             result.resize(SKRY_get_anchor_count(pimpl.get()));
             SKRY_get_anchors(pimpl.get(), result.data());
             return result;
+        }
+
+        /// Returns current centroid position
+        struct SKRY_point GetCentroid() const
+        {
+            return SKRY_get_current_centroid_pos(pimpl.get());
         }
 
         bool IsAnchorValid(size_t anchorIdx) const
@@ -439,6 +453,11 @@ namespace libskry
             return SKRY_suggest_anchor_pos(image.pimpl.get(),
                                            placementBrightnessThreshold,
                                            refBlockSize);
+        }
+
+        enum SKRY_img_alignment_method GetAlignmentMethod() const
+        {
+            return SKRY_get_alignment_method(pimpl.get());
         }
 
         friend class c_QualityEstimation;

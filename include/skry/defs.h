@@ -173,6 +173,15 @@ enum SKRY_img_sequence_type
     SKRY_IMG_SEQ_SER
 };
 
+enum SKRY_img_alignment_method
+{
+    /// Alignment via block-matching around the specified anchor points
+    SKRY_IMG_ALGN_ANCHORS,
+
+    /// Alignment using the image centroid
+    SKRY_IMG_ALGN_CENTROID
+};
+
 /// Selection criterion used for reference point alignment and stacking
 /** "fragment" = triangular patch */
 enum SKRY_quality_criterion

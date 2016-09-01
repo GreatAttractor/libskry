@@ -37,14 +37,25 @@ SKRY_ImgAlignment *SKRY_free_img_alignment(SKRY_ImgAlignment *img_algn);
 
 SKRY_ImgAlignment *SKRY_init_img_alignment(
     SKRY_ImgSequence *img_seq,
-    size_t num_anchors, ///< If zero, anchors will be placed automatically
+    enum SKRY_img_alignment_method method,
+
+    // Parameters used if method==SKRY_IMG_ALGN_ANCHORS ------------
+
+    /// If zero, anchors will be placed automatically
+    size_t num_anchors,
+
     /// Coords relative to the first image's origin; may be null if num_anchors==0
     const struct SKRY_point *anchors,
+
     unsigned block_radius,  ///< Radius (in pixels) of square blocks used for matching images
     unsigned search_radius, ///< Max offset in pixels (horizontal and vertical) of blocks during matching
+
     /// Min. image brightness that an anchor can be placed at (values: [0; 1])
     /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold,
+
+    // -------------------------------------------------------------
+
     enum SKRY_result *result ///< If not null, receives operation result
 );
 
@@ -87,5 +98,11 @@ struct SKRY_point SKRY_suggest_anchor_pos(
     /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold,
     unsigned ref_block_size);
+
+enum SKRY_img_alignment_method SKRY_get_alignment_method(const SKRY_ImgAlignment *img_algn);
+
+/// Returns current centroid position
+struct SKRY_point SKRY_get_current_centroid_pos(const SKRY_ImgAlignment *img_algn);
+
 
 #endif // LIB_STACKISTRY_IMAGE_ALIGNMENT_HEADER

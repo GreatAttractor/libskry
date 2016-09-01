@@ -1025,3 +1025,94 @@ void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern)
             }
     }
 }
+
+/// Finds the centroid of the specified image fragment
+/** Returned coords are relative to 'img_fragment'. */
+struct SKRY_point SKRY_get_centroid(const SKRY_Image *img,
+                                    const struct SKRY_rect img_fragment)
+{
+    double M00 = 0.0; // image moment 00, i.e. sum of pixels' brightness
+    double M10 = 0.0; // image moment 10
+    double M01 = 0.0; // image moment 01
+
+    struct SKRY_palette palette;
+    SKRY_get_palette(img, &palette);
+
+    enum SKRY_pixel_format pix_fmt = SKRY_get_img_pix_fmt(img);
+    size_t num_channels = NUM_CHANNELS[pix_fmt];
+
+    for (unsigned y = img_fragment.y; y < img_fragment.y + img_fragment.height; y++)
+    {
+        void *line = SKRY_get_line(img, y);
+        for (unsigned x = img_fragment.x; x < img_fragment.x + img_fragment.width; x++)
+        {
+            double current_brightness = 0.0;
+
+            switch (pix_fmt)
+            {
+            case SKRY_PIX_PAL8:
+                {
+                    uint8_t pix_val = ((uint8_t *)line)[x];
+                    current_brightness =
+                           palette.pal[3*pix_val    ] +
+                           palette.pal[3*pix_val + 1] +
+                           palette.pal[3*pix_val + 2];
+                    break;
+                }
+
+            case SKRY_PIX_MONO8:
+            case SKRY_PIX_RGB8:
+            case SKRY_PIX_BGRA8:
+            case SKRY_PIX_CFA_RGGB8:
+            case SKRY_PIX_CFA_GRBG8:
+            case SKRY_PIX_CFA_GBRG8:
+            case SKRY_PIX_CFA_BGGR8:
+                for (size_t i = 0; i < num_channels; i++)
+                {
+                    current_brightness += ((uint8_t *)line)[num_channels*x + i];
+                }
+                break;
+
+            case SKRY_PIX_MONO16:
+            case SKRY_PIX_RGB16:
+            case SKRY_PIX_RGBA16:
+            case SKRY_PIX_CFA_RGGB16:
+            case SKRY_PIX_CFA_GRBG16:
+            case SKRY_PIX_CFA_GBRG16:
+            case SKRY_PIX_CFA_BGGR16:
+                for (size_t i = 0; i < num_channels; i++)
+                {
+                    current_brightness += ((uint16_t *)line)[num_channels*x + i];
+                }
+                break;
+
+            case SKRY_PIX_MONO32F:
+            case SKRY_PIX_RGB32F:
+                for (size_t i = 0; i < num_channels; i++)
+                {
+                    current_brightness += ((float *)line)[num_channels*x + i];
+                }
+                break;
+
+            case SKRY_PIX_MONO64F:
+            case SKRY_PIX_RGB64F:
+                for (size_t i = 0; i < num_channels; i++)
+                {
+                    current_brightness += ((double *)line)[num_channels*x + i];
+                }
+                break;
+
+            default: break;
+            }
+
+            M00 += current_brightness;
+            M10 += (x - img_fragment.x) * current_brightness;
+            M01 += (y - img_fragment.y) * current_brightness;
+        }
+    }
+
+    if (M00 == 0.0)
+        return (struct SKRY_point) { .x = img_fragment.width/2, .y = img_fragment.height/2 };
+    else
+        return (struct SKRY_point) { .x = M10/M00, .y = M01/M00 };
+}

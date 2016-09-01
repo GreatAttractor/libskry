@@ -158,4 +158,9 @@ size_t SKRY_get_img_byte_count(const SKRY_Image *img);
     call this function and then use one of the pixel format conversion functions. */
 void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern);
 
+/// Finds the centroid of the specified image fragment
+/** Returned coords are relative to 'img_fragment'. */
+struct SKRY_point SKRY_get_centroid(const SKRY_Image *img,
+                                    const struct SKRY_rect img_fragment);
+
 #endif // LIB_STACKISTRY_IMAGE_HEADER

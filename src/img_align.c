@@ -56,6 +56,8 @@ struct SKRY_img_alignment
     SKRY_ImgSequence *img_seq;
     size_t curr_img_idx;
 
+    enum SKRY_img_alignment_method algn_method;
+
     /** Anchor points used for alignment (there is at least one).
         Coordinates are relative to the current image's origin. */
     DA_DECLARE(struct anchor_data) anchors;
@@ -71,6 +73,8 @@ struct SKRY_img_alignment
     /// Min. image brightness that an anchor can be placed at (values: [0; 1])
     /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold;
+
+    struct SKRY_point centroid_pos;
 
     /// Set-theoretic intersection of all images after alignment (i.e. the fragment which is visible in all images)
     struct
@@ -124,41 +128,46 @@ int SKRY_is_img_alignment_complete(const struct SKRY_img_alignment *img_algn)
 
 struct SKRY_img_alignment *SKRY_init_img_alignment(
     SKRY_ImgSequence *img_seq,
+    enum SKRY_img_alignment_method method,
+
+    // Parameters used if method==SKRY_IMG_ALGN_ANCHORS ------------
+
+    /// If zero, anchors will be placed automatically
     size_t num_anchors,
+
+    /// Coords relative to the first image's origin; may be null if num_anchors==0
     const struct SKRY_point *anchors,
-    unsigned block_radius,
-    unsigned search_radius,
+
+    unsigned block_radius,  ///< Radius (in pixels) of square blocks used for matching images
+    unsigned search_radius, ///< Max offset in pixels (horizontal and vertical) of blocks during matching
+
+    /// Min. image brightness that an anchor can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold,
-    enum SKRY_result *result)
+
+    // -------------------------------------------------------------
+
+    enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     assert(SKRY_get_active_img_count(img_seq) > 0);
+
+    if (SKRY_IMG_ALGN_ANCHORS == method)
+        if (block_radius == 0 || search_radius == 0)
+        {
+            if (result)
+                *result = SKRY_INVALID_PARAMETERS;
+            return 0;
+        }
+
     enum SKRY_result local_result;
-
-    if (block_radius == 0 || search_radius == 0)
-    {
-        if (result)
-            *result = SKRY_INVALID_PARAMETERS;
-        return 0;
-    }
-
     SKRY_seek_start(img_seq);
-
     SKRY_Image *first_img = SKRY_get_curr_img(img_seq, &local_result);
     if (local_result != SKRY_SUCCESS)
     {
         if (result)
             *result = local_result;
         return 0;
-    }
-
-    struct SKRY_point automatic_anchor;
-    if (num_anchors == 0 || anchors == 0)
-    {
-        automatic_anchor = SKRY_suggest_anchor_pos(first_img, placement_brightness_threshold, 2*block_radius);
-        LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "No anchors specified; adding anchor at (%d, %d).",
-                automatic_anchor.x, automatic_anchor.y);
-        anchors = &automatic_anchor;
-        num_anchors = 1;
     }
 
     struct SKRY_img_alignment *img_algn = malloc(sizeof(*img_algn));
@@ -169,37 +178,56 @@ struct SKRY_img_alignment *SKRY_init_img_alignment(
     *img_algn = (struct SKRY_img_alignment) { 0 };
 
     img_algn->img_seq = img_seq;
+    img_algn->algn_method = method;
 
     img_algn->img_offsets = malloc(SKRY_get_active_img_count(img_seq) * sizeof(*img_algn->img_offsets));
     FAIL_ON_NULL(img_algn->img_offsets);
     img_algn->intersection.offset = (struct SKRY_point) { .x = 0, .y = 0 };
     img_algn->intersection.bottom_right = (struct SKRY_point) { .x = INT_MAX, .y = INT_MAX };
     img_algn->intersection.width = img_algn->intersection.height = 0;
-    img_algn->search_radius = search_radius;
-    img_algn->block_radius = block_radius;
-    img_algn->placement_brightness_threshold = placement_brightness_threshold;
 
-    img_algn->active_anchor_idx = 0;
-    DA_ALLOC(img_algn->anchors, num_anchors);
-    DA_SET_SIZE(img_algn->anchors, num_anchors);
-    FAIL_ON_NULL(img_algn->anchors.data);
-    for (size_t i = 0; i < num_anchors; i++)
-        img_algn->anchors.data[i].is_valid = 1;
-
-    for (size_t i = 0; i < DA_SIZE(img_algn->anchors); i++)
+    if (SKRY_IMG_ALGN_ANCHORS == method)
     {
-        img_algn->anchors.data[i].pos = anchors[i];
-        SKRY_Image *blk = SKRY_convert_pix_fmt_of_subimage(first_img, SKRY_PIX_MONO8,
-                                         anchors[i].x - block_radius,
-                                         anchors[i].y - block_radius,
-                                         2*block_radius, 2*block_radius, SKRY_DEMOSAIC_SIMPLE);
-        img_algn->anchors.data[i].ref_block = blk;
-        img_algn->anchors.data[i].ref_block_qual =
-            estimate_quality(SKRY_get_line(blk, 0),
-                SKRY_get_img_width(blk),
-                SKRY_get_img_height(blk),
-                SKRY_get_line_stride_in_bytes(blk),
-                QUALITY_EST_BOX_BLUR_RADIUS);
+        struct SKRY_point automatic_anchor;
+        if (num_anchors == 0 || anchors == 0)
+        {
+            automatic_anchor = SKRY_suggest_anchor_pos(first_img, placement_brightness_threshold, 2*block_radius);
+            LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "No anchors specified; adding anchor at (%d, %d).",
+                    automatic_anchor.x, automatic_anchor.y);
+            anchors = &automatic_anchor;
+            num_anchors = 1;
+        }
+
+        img_algn->search_radius = search_radius;
+        img_algn->block_radius = block_radius;
+        img_algn->placement_brightness_threshold = placement_brightness_threshold;
+
+        img_algn->active_anchor_idx = 0;
+        DA_ALLOC(img_algn->anchors, num_anchors);
+        DA_SET_SIZE(img_algn->anchors, num_anchors);
+        FAIL_ON_NULL(img_algn->anchors.data);
+        for (size_t i = 0; i < num_anchors; i++)
+            img_algn->anchors.data[i].is_valid = 1;
+
+        for (size_t i = 0; i < DA_SIZE(img_algn->anchors); i++)
+        {
+            img_algn->anchors.data[i].pos = anchors[i];
+            SKRY_Image *blk = SKRY_convert_pix_fmt_of_subimage(first_img, SKRY_PIX_MONO8,
+                                             anchors[i].x - block_radius,
+                                             anchors[i].y - block_radius,
+                                             2*block_radius, 2*block_radius, SKRY_DEMOSAIC_SIMPLE);
+            img_algn->anchors.data[i].ref_block = blk;
+            img_algn->anchors.data[i].ref_block_qual =
+                estimate_quality(SKRY_get_line(blk, 0),
+                    SKRY_get_img_width(blk),
+                    SKRY_get_img_height(blk),
+                    SKRY_get_line_stride_in_bytes(blk),
+                    QUALITY_EST_BOX_BLUR_RADIUS);
+        }
+    }
+    else if (SKRY_IMG_ALGN_CENTROID == method)
+    {
+        img_algn->centroid_pos = SKRY_get_centroid(first_img, SKRY_get_img_rect(first_img));
     }
 
     if (result)
@@ -208,6 +236,121 @@ struct SKRY_img_alignment *SKRY_init_img_alignment(
     SKRY_free_image(first_img);
 
     return img_algn;
+}
+
+static
+struct SKRY_point determine_img_offset_using_anchors(SKRY_ImgAlignment *img_algn,
+                                                     const SKRY_Image *img /* must be SKRY_PIX_MONO8 */)
+{
+    struct SKRY_point active_anchor_offset = { 0 };
+
+    for (size_t i = 0; i < DA_SIZE(img_algn->anchors); i++)
+    {
+        struct anchor_data *anchor = &img_algn->anchors.data[i];
+        if (img_algn->anchors.data[i].is_valid)
+        {
+            struct SKRY_point new_pos;
+            find_matching_position(anchor->pos, anchor->ref_block,
+                                   img, img_algn->search_radius, 4, &new_pos);
+
+            unsigned blkw = SKRY_get_img_width(anchor->ref_block),
+                     blkh = SKRY_get_img_height(anchor->ref_block);
+
+            if (new_pos.x < (int)(blkw + img_algn->search_radius) ||
+                new_pos.x > (int)(SKRY_get_img_width(img) - blkw - img_algn->search_radius) ||
+                new_pos.y < (int)(blkh + img_algn->search_radius) ||
+                new_pos.y > (int)(SKRY_get_img_height(img) - blkh - img_algn->search_radius))
+            {
+                anchor->is_valid = 0;
+            }
+
+            SKRY_quality_t new_qual = estimate_quality((uint8_t *)SKRY_get_line(img, new_pos.y) + new_pos.x,
+                                                       blkw, blkh,
+                                                       SKRY_get_line_stride_in_bytes(img),
+                                                       QUALITY_EST_BOX_BLUR_RADIUS);
+            if (new_qual > anchor->ref_block_qual)
+            {
+                anchor->ref_block_qual = new_qual;
+
+                // Refresh the reference block using the current image at the block's new position
+                SKRY_convert_pix_fmt_of_subimage_into(img, anchor->ref_block,
+                                                      new_pos.x - blkw/2,
+                                                      new_pos.y - blkh/2,
+                                                      0, 0,
+                                                      blkw, blkh,
+                                                      SKRY_DEMOSAIC_SIMPLE);
+            }
+
+            if (i == img_algn->active_anchor_idx)
+            {
+                active_anchor_offset.x = new_pos.x - anchor->pos.x;
+                active_anchor_offset.y = new_pos.y - anchor->pos.y;
+            }
+
+            anchor->pos = new_pos;
+        }
+    }
+
+    if (!img_algn->anchors.data[img_algn->active_anchor_idx].is_valid)
+    {
+        // Select the next available valid anchor as "active"
+        size_t new_active_idx = img_algn->active_anchor_idx+1;
+        while (new_active_idx < DA_SIZE(img_algn->anchors))
+        {
+            if (img_algn->anchors.data[new_active_idx].is_valid)
+            {
+                break;
+            }
+            else
+                new_active_idx++;
+        }
+
+        if (new_active_idx >= DA_SIZE(img_algn->anchors))
+        {
+            // There are no more existing valid anchors; choose and add a new one
+            DA_SET_SIZE(img_algn->anchors, DA_SIZE(img_algn->anchors) + 1);
+            struct anchor_data *new_anchor = &DA_LAST(img_algn->anchors);
+
+            new_anchor->pos = SKRY_suggest_anchor_pos(img,
+                                                      img_algn->placement_brightness_threshold,
+                                                      2*img_algn->block_radius);
+            new_anchor->ref_block = SKRY_new_image(2*img_algn->block_radius,
+                                                   2*img_algn->block_radius,
+                                                   SKRY_PIX_MONO8, 0, 0);
+            SKRY_resize_and_translate(img, new_anchor->ref_block,
+                                      new_anchor->pos.x - img_algn->block_radius,
+                                      new_anchor->pos.y - img_algn->block_radius,
+                                      img_algn->block_radius,
+                                      img_algn->block_radius,
+                                      0, 0, 0);
+            new_anchor->ref_block_qual = estimate_quality(SKRY_get_line(new_anchor->ref_block, 0),
+                                                          SKRY_get_img_width(new_anchor->ref_block),
+                                                          SKRY_get_img_height(new_anchor->ref_block),
+                                                          SKRY_get_line_stride_in_bytes(new_anchor->ref_block),
+                                                          QUALITY_EST_BOX_BLUR_RADIUS);
+            new_anchor->is_valid = 1;
+            img_algn->active_anchor_idx = DA_SIZE(img_algn->anchors)-1;
+
+            LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "No more valid active anchors. Adding new anchor at (%d, %d).",
+                    new_anchor->pos.x, new_anchor->pos.y);
+        }
+        else
+            LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "Current anchor invalidated, switching to anchor %zu at (%d, %d).",
+                    new_active_idx,
+                    img_algn->anchors.data[new_active_idx].pos.x,
+                    img_algn->anchors.data[new_active_idx].pos.y);
+    }
+
+    return active_anchor_offset;
+}
+
+static
+struct SKRY_point determine_img_offset_using_centroid(SKRY_ImgAlignment *img_algn, const SKRY_Image *img)
+{
+    struct SKRY_point new_centroid_pos = SKRY_get_centroid(img, SKRY_get_img_rect(img));
+    return (struct SKRY_point)
+        { .x = new_centroid_pos.x - img_algn->centroid_pos.x,
+          .y = new_centroid_pos.y - img_algn->centroid_pos.y };
 }
 
 enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
@@ -246,120 +389,35 @@ enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
         SKRY_Image *img = SKRY_get_curr_img(img_algn->img_seq, &result);
         if (!img)
             return result;
-        if (SKRY_get_img_pix_fmt(img) != SKRY_PIX_MONO8)
-        {
-            SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
-            SKRY_free_image(img);
-            if (!img_mono8)
-                return SKRY_OUT_OF_MEMORY;
 
-            img = img_mono8;
+
+        struct SKRY_point detected_img_offset = { 0 };
+
+        if (SKRY_IMG_ALGN_ANCHORS == img_algn->algn_method)
+        {
+            if (SKRY_get_img_pix_fmt(img) != SKRY_PIX_MONO8)
+            {
+                SKRY_Image *img_mono8 = SKRY_convert_pix_fmt(img, SKRY_PIX_MONO8, SKRY_DEMOSAIC_SIMPLE);
+                SKRY_free_image(img);
+                if (!img_mono8)
+                    return SKRY_OUT_OF_MEMORY;
+
+                img = img_mono8;
+            }
+
+            detected_img_offset = determine_img_offset_using_anchors(img_algn, img);
         }
-
-        struct SKRY_point active_anchor_offset = { 0 };
-
-        for (size_t i = 0; i < DA_SIZE(img_algn->anchors); i++)
+        else if (SKRY_IMG_ALGN_CENTROID == img_algn->algn_method)
         {
-            struct anchor_data *anchor = &img_algn->anchors.data[i];
-            if (img_algn->anchors.data[i].is_valid)
-            {
-                struct SKRY_point new_pos;
-                find_matching_position(anchor->pos, anchor->ref_block,
-                                       img, img_algn->search_radius, 4, &new_pos);
-
-                unsigned blkw = SKRY_get_img_width(anchor->ref_block),
-                         blkh = SKRY_get_img_height(anchor->ref_block);
-
-                if (new_pos.x < (int)(blkw + img_algn->search_radius) ||
-                    new_pos.x > (int)(SKRY_get_img_width(img) - blkw - img_algn->search_radius) ||
-                    new_pos.y < (int)(blkh + img_algn->search_radius) ||
-                    new_pos.y > (int)(SKRY_get_img_height(img) - blkh - img_algn->search_radius))
-                {
-                    anchor->is_valid = 0;
-                }
-
-                SKRY_quality_t new_qual = estimate_quality((uint8_t *)SKRY_get_line(img, new_pos.y) + new_pos.x,
-                                                           blkw, blkh,
-                                                           SKRY_get_line_stride_in_bytes(img),
-                                                           QUALITY_EST_BOX_BLUR_RADIUS);
-                if (new_qual > anchor->ref_block_qual)
-                {
-                    anchor->ref_block_qual = new_qual;
-
-                    // Refresh the reference block using the current image at the block's new position
-                    SKRY_convert_pix_fmt_of_subimage_into(img, anchor->ref_block,
-                                                          new_pos.x - blkw/2,
-                                                          new_pos.y - blkh/2,
-                                                          0, 0,
-                                                          blkw, blkh,
-                                                          SKRY_DEMOSAIC_SIMPLE);
-                }
-
-                if (i == img_algn->active_anchor_idx)
-                {
-                    active_anchor_offset.x = new_pos.x - anchor->pos.x;
-                    active_anchor_offset.y = new_pos.y - anchor->pos.y;
-                }
-
-                anchor->pos = new_pos;
-            }
-        }
-
-        if (!img_algn->anchors.data[img_algn->active_anchor_idx].is_valid)
-        {
-            // Select the next available valid anchor as "active"
-            size_t new_active_idx = img_algn->active_anchor_idx+1;
-            while (new_active_idx < DA_SIZE(img_algn->anchors))
-            {
-                if (img_algn->anchors.data[new_active_idx].is_valid)
-                {
-                    break;
-                }
-                else
-                    new_active_idx++;
-            }
-
-            if (new_active_idx >= DA_SIZE(img_algn->anchors))
-            {
-                // There are no more existing valid anchors; choose and add a new one
-                DA_SET_SIZE(img_algn->anchors, DA_SIZE(img_algn->anchors) + 1);
-                struct anchor_data *new_anchor = &DA_LAST(img_algn->anchors);
-
-                new_anchor->pos = SKRY_suggest_anchor_pos(img,
-                                                          img_algn->placement_brightness_threshold,
-                                                          2*img_algn->block_radius);
-                new_anchor->ref_block = SKRY_new_image(2*img_algn->block_radius,
-                                                       2*img_algn->block_radius,
-                                                       SKRY_PIX_MONO8, 0, 0);
-                SKRY_resize_and_translate(img, new_anchor->ref_block,
-                                          new_anchor->pos.x - img_algn->block_radius,
-                                          new_anchor->pos.y - img_algn->block_radius,
-                                          img_algn->block_radius,
-                                          img_algn->block_radius,
-                                          0, 0, 0);
-                new_anchor->ref_block_qual = estimate_quality(SKRY_get_line(new_anchor->ref_block, 0),
-                                                              SKRY_get_img_width(new_anchor->ref_block),
-                                                              SKRY_get_img_height(new_anchor->ref_block),
-                                                              SKRY_get_line_stride_in_bytes(new_anchor->ref_block),
-                                                              QUALITY_EST_BOX_BLUR_RADIUS);
-                new_anchor->is_valid = 1;
-                img_algn->active_anchor_idx = DA_SIZE(img_algn->anchors)-1;
-
-                LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "No more valid active anchors. Adding new anchor at (%d, %d).",
-                        new_anchor->pos.x, new_anchor->pos.y);
-            }
-            else
-                LOG_MSG(SKRY_LOG_IMG_ALIGNMENT, "Current anchor invalidated, switching to anchor %zu at (%d, %d).",
-                        new_active_idx,
-                        img_algn->anchors.data[new_active_idx].pos.x,
-                        img_algn->anchors.data[new_active_idx].pos.y);
+            detected_img_offset = determine_img_offset_using_centroid(img_algn, img);
+            SKRY_ADD_POINT_TO(img_algn->centroid_pos, detected_img_offset);
         }
 
         // 'img_offsets' contain offsets relative to the first frame, so store the current offset incrementally w.r.t. the previous one
         struct SKRY_point *curr_img_ofs = &img_algn->img_offsets[img_algn->curr_img_idx];
         *curr_img_ofs = SKRY_ADD_POINTS(
                 img_algn->img_offsets[img_algn->curr_img_idx-1],
-                active_anchor_offset);
+                detected_img_offset);
 
         img_algn->intersection.offset.x = SKRY_MAX(img_algn->intersection.offset.x, -curr_img_ofs->x);
         img_algn->intersection.offset.y = SKRY_MAX(img_algn->intersection.offset.y, -curr_img_ofs->y);
@@ -475,4 +533,15 @@ int SKRY_is_anchor_valid(const SKRY_ImgAlignment *img_algn, size_t anchor_idx)
 {
     assert(anchor_idx < DA_SIZE(img_algn->anchors));
     return img_algn->anchors.data[anchor_idx].is_valid;
+}
+
+enum SKRY_img_alignment_method SKRY_get_alignment_method(const struct SKRY_img_alignment *img_algn)
+{
+    return img_algn->algn_method;
+}
+
+/// Returns current centroid position
+struct SKRY_point SKRY_get_current_centroid_pos(const SKRY_ImgAlignment *img_algn)
+{
+    return img_algn->centroid_pos;
 }
