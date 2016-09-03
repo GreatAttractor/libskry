@@ -513,6 +513,15 @@ struct SKRY_img_sequence *init_AVI(const char *file_name,
         FAIL(SKRY_AVI_MALFORMED_FILE);
     }
 
+    if (FCC_COMPARE(stream_header.fcc_handler, "\0\0\0"))
+    {
+        // Empty 'fcc_handler' means DIB by default
+        stream_header.fcc_handler[0] = 'D';
+        stream_header.fcc_handler[1] = 'I';
+        stream_header.fcc_handler[2] = 'B';
+        stream_header.fcc_handler[3] = ' ';
+    }
+
     if (!FCC_COMPARE(stream_header.fcc_handler, "DIB ") &&
         !FCC_COMPARE(stream_header.fcc_handler, "Y800") &&
         !FCC_COMPARE(stream_header.fcc_handler, "Y8  "))
