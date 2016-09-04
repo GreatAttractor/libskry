@@ -59,6 +59,7 @@ int main(int argc, char *argv[])
     img_alignment =
         SKRY_init_img_alignment(
             img_seq,
+            SKRY_IMG_ALGN_ANCHORS,
             0, 0, // stabilization anchors will be placed automatically
             32, 32, // block radius and search radius for block-matching
             0.33f, // min. relative brightness to place anchors at;

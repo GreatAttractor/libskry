@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 
     libskry::c_ImageAlignment imgAlignment(
         imgSeq,
+        SKRY_IMG_ALGN_ANCHORS,
         { }, // pass an empty vector; stabilization anchors
              // will be placed automatically
         32, 32, // block radius and search radius for block-matching
