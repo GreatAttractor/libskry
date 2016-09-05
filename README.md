@@ -81,8 +81,6 @@ To use libskry's C interface, add the following:
 #include <skry/skry.h>
 ```
 
-(in a C++ source file, surround the above by ``extern "C" { }``).
-
 To use the C++ wrappers:
 
 ```C++

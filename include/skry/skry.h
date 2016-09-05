@@ -57,6 +57,10 @@ File description:
        (even if active ones are not sequential).
 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "defs.h"
 #include "image.h"
 #include "img_align.h"
@@ -89,5 +93,10 @@ void SKRY_set_clock_func(SKRY_clock_sec_fn clock_func);
 
 /// May return null
 const char *SKRY_get_error_message(enum SKRY_result error);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 
 #endif // LIB_STACKISTRY_MAIN_HEADER

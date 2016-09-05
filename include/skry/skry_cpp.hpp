@@ -29,10 +29,8 @@ File description:
 #include <string>
 #include <vector>
 
+#include "skry.h"
 
-extern "C" {
-    #include "skry.h"
-}
 
 namespace libskry
 {
