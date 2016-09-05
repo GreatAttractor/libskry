@@ -167,7 +167,7 @@ const enum SKRY_CFA_pattern SKRY_PIX_CFA_PATTERN[SKRY_NUM_PIX_FORMATS] =
 // ------------ Implementation of the internal image class ---------------------
 
 static
-struct SKRY_image *free_internal_img(struct SKRY_image *img)
+SKRY_Image *free_internal_img(SKRY_Image *img)
 {
     LOG_MSG(SKRY_LOG_IMAGE, "Freeing image pixels array at %p.", IMG_DATA(img)->pixels);
     free(IMG_DATA(img)->pixels);
@@ -177,38 +177,38 @@ struct SKRY_image *free_internal_img(struct SKRY_image *img)
 }
 
 static
-unsigned get_internal_img_width(const struct SKRY_image *img)
+unsigned get_internal_img_width(const SKRY_Image *img)
 {
     return IMG_DATA(img)->width;
 }
 
 static
-unsigned get_internal_img_height(const struct SKRY_image *img)
+unsigned get_internal_img_height(const SKRY_Image *img)
 {
     return IMG_DATA(img)->height;
 }
 
 static
-ptrdiff_t get_internal_line_stride_in_bytes(const struct SKRY_image *img)
+ptrdiff_t get_internal_line_stride_in_bytes(const SKRY_Image *img)
 {
     return (ptrdiff_t)(BYTES_PER_PIXEL[img->pix_fmt] * IMG_DATA(img)->width);
 }
 
 static
-size_t get_internal_img_bytes_per_pixel(const struct SKRY_image *img)
+size_t get_internal_img_bytes_per_pixel(const SKRY_Image *img)
 {
     return BYTES_PER_PIXEL[img->pix_fmt];
 }
 
 static
-void *get_internal_img_line(const struct SKRY_image *img, size_t line)
+void *get_internal_img_line(const SKRY_Image *img, size_t line)
 {
     return (char *)IMG_DATA(img)->pixels + line * get_internal_line_stride_in_bytes(img);
 }
 
 /// Fills 'pal'; returns SKRY_NO_PALETTE if image does not contain a palette
 static
-enum SKRY_result get_internal_img_palette (const struct SKRY_image *img, struct SKRY_palette *pal)
+enum SKRY_result get_internal_img_palette (const SKRY_Image *img, struct SKRY_palette *pal)
 {
     if (img->pix_fmt != SKRY_PIX_PAL8)
         return SKRY_NO_PALETTE;
@@ -219,9 +219,10 @@ enum SKRY_result get_internal_img_palette (const struct SKRY_image *img, struct 
     return SKRY_SUCCESS;
 }
 
-struct SKRY_image *create_internal_img(void)
+/// Allocates and initializes an empty internal image structure; returns null if out of memory
+SKRY_Image *create_internal_img(void)
 {
-    struct SKRY_image *img = malloc(sizeof(*img));
+    SKRY_Image *img = malloc(sizeof(*img));
     if (!img)
         return 0;
 
@@ -251,7 +252,8 @@ struct SKRY_image *create_internal_img(void)
 
 // -------------- Public interface implementation ------------------------------
 
-struct SKRY_image *SKRY_free_image(struct SKRY_image *img)
+/// Returns null
+SKRY_Image *SKRY_free_image(SKRY_Image *img)
 {
     if (img)
     {
@@ -261,46 +263,52 @@ struct SKRY_image *SKRY_free_image(struct SKRY_image *img)
     return 0;
 }
 
-unsigned SKRY_get_img_width(const struct SKRY_image *img)
+unsigned SKRY_get_img_width(const SKRY_Image *img)
 {
     return img->get_width(img);
 }
 
-unsigned SKRY_get_img_height(const struct SKRY_image *img)
+unsigned SKRY_get_img_height(const SKRY_Image *img)
 {
     return img->get_height(img);
 }
 
-ptrdiff_t SKRY_get_line_stride_in_bytes(const struct SKRY_image *img)
+/// Result may be negative (means lines are stored bottom-to-top)
+ptrdiff_t SKRY_get_line_stride_in_bytes(const SKRY_Image *img)
 {
     return img->get_line_stride_in_bytes(img);
 }
 
-size_t SKRY_get_bytes_per_pixel(const struct SKRY_image *img)
+size_t SKRY_get_bytes_per_pixel(const SKRY_Image *img)
 {
     return img->get_bytes_per_pixel(img);
 }
 
-void *SKRY_get_line (const struct SKRY_image *img, size_t line)
+/// Returns pointer to start of the specified line
+void *SKRY_get_line(const SKRY_Image *img, size_t line)
 {
     return img->get_line(img, line);
 }
 
-enum SKRY_pixel_format SKRY_get_img_pix_fmt(const struct SKRY_image *img)
+enum SKRY_pixel_format SKRY_get_img_pix_fmt(const SKRY_Image *img)
 {
     return img->pix_fmt;
 }
 
+/** Copies (with cropping or padding) a fragment of image to another. There is no scaling.
+    Pixel formats of source and destination must be the same. 'src_img' must not equal 'dest_img'.
+    NOTE: care must be taken if pixel format is one of SKRY_CFA. The caller may need to adjust
+    the CFA_pattern if source and destination X, Y offets are not simultaneously odd/even. */
 void SKRY_resize_and_translate(
-    const struct SKRY_image *src_img,
-    struct SKRY_image *dest_img,
-    int src_x_min,
-    int src_y_min,
-    unsigned width,
-    unsigned height,
-    int dest_x_ofs,
-    int dest_y_ofs,
-    int clear_to_zero
+    const SKRY_Image *src_img,
+    SKRY_Image *dest_img,
+    int src_x_min,   ///< X min of input data in source image
+    int src_y_min,   ///< Y min of input data in source image
+    unsigned width,  ///< width of fragment to copy
+    unsigned height, ///< height of fragment to copy
+    int dest_x_ofs,  ///< X offset of input data in destination image
+    int dest_y_ofs,  ///< Y offset of input data in destination image
+    int clear_to_zero  ///< if 1, 'dest_img' areas not copied on will be cleared to zero
 )
 {
     assert(SKRY_get_img_pix_fmt(src_img) == SKRY_get_img_pix_fmt(dest_img));
@@ -353,8 +361,10 @@ void SKRY_resize_and_translate(
     }
 }
 
-struct SKRY_image *SKRY_new_image(
+/// Allocates a new image (with lines stored top-to-bottom, no padding)
+SKRY_Image *SKRY_new_image(
     unsigned width, unsigned height, enum SKRY_pixel_format pixel_format,
+    /// Can be null; if not null, used only if 'pixel_format' is PIX_PAL8
     const struct SKRY_palette *palette,
     int zero_fill)
 {
@@ -362,7 +372,7 @@ struct SKRY_image *SKRY_new_image(
     assert(height > 0);
     assert(pixel_format > SKRY_PIX_INVALID && pixel_format < SKRY_NUM_PIX_FORMATS);
 
-    struct SKRY_image *img = create_internal_img();
+    SKRY_Image *img = create_internal_img();
     if (!img)
         return 0;
 
@@ -385,17 +395,27 @@ struct SKRY_image *SKRY_new_image(
     return img;
 }
 
-struct SKRY_image *SKRY_convert_pix_fmt(const struct SKRY_image *src_img, enum SKRY_pixel_format dest_pix_fmt,
-                                        enum SKRY_demosaic_method demosaic_method)
+/// Returned image has lines stored top-to-bottom, no padding
+SKRY_Image *SKRY_convert_pix_fmt(const SKRY_Image *src_img,
+                                 enum SKRY_pixel_format dest_pix_fmt,
+                                 /// Used if 'img' contains raw color data
+                                 enum SKRY_demosaic_method demosaic_method)
 {
     return SKRY_convert_pix_fmt_of_subimage(
             src_img, dest_pix_fmt,
             0, 0, SKRY_get_img_width(src_img), SKRY_get_img_height(src_img), demosaic_method);
 }
 
+/// Converts a fragment of 'src_img' to 'dest_img's pixel format and writes it into 'dest_img'
+/** Cropping is performed if necessary. If 'src_img' is in raw color format, the CFA pattern
+    will be appropriately adjusted depending on 'x0', 'y0'. */
 void SKRY_convert_pix_fmt_of_subimage_into(
-        const struct SKRY_image *src_img, struct SKRY_image *dest_img,
-        int src_x0, int src_y0, int dest_x0, int dest_y0, unsigned width, unsigned height,
+        const SKRY_Image *src_img,
+        SKRY_Image       *dest_img,
+        int src_x0, int src_y0,
+        int dest_x0, int dest_y0,
+        unsigned width, unsigned height,
+        /// Used if 'img' contains raw color data
         enum SKRY_demosaic_method demosaic_method)
 {
     unsigned src_width = SKRY_get_img_width(src_img);
@@ -896,15 +916,19 @@ void SKRY_convert_pix_fmt_of_subimage_into(
     }
 }
 
-struct SKRY_image *SKRY_convert_pix_fmt_of_subimage(
-        const struct SKRY_image *src_img, enum SKRY_pixel_format dest_pix_fmt,
+/// Returned image has lines stored top-to-bottom, no padding
+/** If 'src_img' is in raw color format, the CFA pattern will be
+    appropriately adjusted depending on 'x0', 'y0'. */
+SKRY_Image *SKRY_convert_pix_fmt_of_subimage(
+        const SKRY_Image *src_img, enum SKRY_pixel_format dest_pix_fmt,
         int x0, int y0, unsigned width, unsigned height,
+        /// Used if 'img' contains raw color data
         enum SKRY_demosaic_method demosaic_method)
 {
     struct SKRY_palette src_palette;
     SKRY_get_palette(src_img, &src_palette);
 
-    struct SKRY_image *dest_img = SKRY_new_image(width, height, dest_pix_fmt, &src_palette, 0);
+    SKRY_Image *dest_img = SKRY_new_image(width, height, dest_pix_fmt, &src_palette, 0);
     if (dest_img)
         SKRY_convert_pix_fmt_of_subimage_into(src_img, dest_img, x0, y0, 0, 0, width, height,
                                               demosaic_method);
@@ -912,12 +936,14 @@ struct SKRY_image *SKRY_convert_pix_fmt_of_subimage(
     return dest_img;
 }
 
-enum SKRY_result SKRY_get_palette(const struct SKRY_image *img, struct SKRY_palette *pal)
+/// Fills 'pal'; returns SKRY_SUCCESS or SKRY_NO_PALETTE if image does not contain a palette
+enum SKRY_result SKRY_get_palette(const SKRY_Image *img, struct SKRY_palette *pal)
 {
     return img->get_palette(img, pal);
 }
 
-struct SKRY_image *SKRY_get_img_copy(const struct SKRY_image *img)
+/// Returned image has lines stored top-to-bottom, no padding
+SKRY_Image *SKRY_get_img_copy(const SKRY_Image *img)
 {
     if (!img)
         return 0;
@@ -929,7 +955,7 @@ struct SKRY_image *SKRY_get_img_copy(const struct SKRY_image *img)
     struct SKRY_palette palette;
     SKRY_get_palette(img, &palette);
 
-    struct SKRY_image *img_copy = SKRY_new_image(width, height, pix_fmt, &palette, 0);
+    SKRY_Image *img_copy = SKRY_new_image(width, height, pix_fmt, &palette, 0);
     if (!img_copy)
         return 0;
 
@@ -940,9 +966,10 @@ struct SKRY_image *SKRY_get_img_copy(const struct SKRY_image *img)
     return img_copy;
 }
 
-struct SKRY_image *SKRY_load_image(const char *file_name,
-                                   enum SKRY_result *result ///< If not null, receives operation result
-                                  )
+/// Returns null on error
+SKRY_Image *SKRY_load_image(const char *file_name,
+                            enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     if (compare_extension(file_name, "bmp"))
         return load_BMP(file_name, result);
@@ -955,11 +982,12 @@ struct SKRY_image *SKRY_load_image(const char *file_name,
     }
 }
 
+/// Returns metadata without reading the pixel data
 enum SKRY_result SKRY_get_image_metadata(const char *file_name,
-                                         unsigned *width,
-                                         unsigned *height,
-                                         enum SKRY_pixel_format *pix_fmt
-                                        )
+                                         unsigned *width,  ///< If not null, receives image width
+                                         unsigned *height, ///< If not null, receives image height
+                                         enum SKRY_pixel_format *pix_fmt ///< If not null, receives pixel format
+)
 {
     if (compare_extension(file_name, "bmp"))
         return get_BMP_metadata(file_name, width, height, pix_fmt);
@@ -969,7 +997,7 @@ enum SKRY_result SKRY_get_image_metadata(const char *file_name,
         return SKRY_UNSUPPORTED_FILE_FORMAT;
 }
 
-enum SKRY_result SKRY_save_image(const struct SKRY_image *img, const char *file_name,
+enum SKRY_result SKRY_save_image(const SKRY_Image *img, const char *file_name,
                                  enum SKRY_output_format output_fmt)
 {
     if (SKRY_BMP_8 == output_fmt)
@@ -980,7 +1008,8 @@ enum SKRY_result SKRY_save_image(const struct SKRY_image *img, const char *file_
         return SKRY_UNSUPPORTED_FILE_FORMAT;
 }
 
-struct SKRY_rect SKRY_get_img_rect(const struct SKRY_image *img)
+/// Returns a rectangle at (0, 0) and the same size as the image
+struct SKRY_rect SKRY_get_img_rect(const SKRY_Image *img)
 {
     return (struct SKRY_rect) { .x = 0, .y = 0,
                                 .width = img->get_width(img),
@@ -988,19 +1017,26 @@ struct SKRY_rect SKRY_get_img_rect(const struct SKRY_image *img)
 }
 
 const unsigned *SKRY_get_supported_output_formats(
-                    size_t *num_formats)
+                    size_t *num_formats ///< Receives number of elements in returned array
+)
 {
     *num_formats = sizeof(SUPPORTED_OUTP_FMT)/sizeof(*SUPPORTED_OUTP_FMT);
     return SUPPORTED_OUTP_FMT;
 }
 
-size_t SKRY_get_img_byte_count(const struct SKRY_image *img)
+/// Returns number of bytes occupied by the image
+/** The value may not encompass some of image's metadata (ca. tens to hundreds of bytes). */
+size_t SKRY_get_img_byte_count(const SKRY_Image *img)
 {
     ptrdiff_t lstride = SKRY_get_line_stride_in_bytes(img);
     size_t bytes_per_line = (lstride > 0 ? lstride : -lstride);
     return sizeof(*img) + SKRY_get_img_height(img) * bytes_per_line;
 }
 
+/// Treat the image as containing raw color data (pixel format will be updated)
+/** Can be used only if the image is 8- or 16-bit mono or raw color.
+    Only pixel format is updated, the pixel data is unchanged. To demosaic,
+    call this function and then use one of the pixel format conversion functions. */
 void SKRY_reinterpret_as_CFA(SKRY_Image *img, enum SKRY_CFA_pattern CFA_pattern)
 {
     if (NUM_CHANNELS[img->pix_fmt] == 1)

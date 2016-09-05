@@ -159,8 +159,10 @@ enum SKRY_result parse_tag_BITS_PER_SAMPLE(const struct TIFF_field tiff_field,
         return 0;                         \
     } while(0)
 
+/// Returns null on error
 SKRY_Image *load_TIFF(const char *file_name,
-                      enum SKRY_result *result)
+                      enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     unsigned img_width = 0, img_height = 0;
     enum SKRY_pixel_format pix_fmt = SKRY_PIX_INVALID;
@@ -530,10 +532,12 @@ enum SKRY_result save_TIFF(const SKRY_Image *img, const char *file_name)
         return error_code;                \
     } while(0)
 
+/// Returns metadata without reading the pixel data
 enum SKRY_result get_TIFF_metadata(const char *file_name,
-                                   unsigned *width,
-                                   unsigned *height,
-                                   enum SKRY_pixel_format *pix_fmt)
+                                   unsigned *width,  ///< If not null, receives image width
+                                   unsigned *height, ///< If not null, receives image height
+                                   enum SKRY_pixel_format *pix_fmt ///< If not null, receives pixel format
+)
 {
     FILE *file = fopen(file_name, "rb");
 

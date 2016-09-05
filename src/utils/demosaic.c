@@ -475,9 +475,15 @@ do {                                                                            
 } while (0)
 
 
-void demosaic_8_as_RGB(uint8_t *input, unsigned width, unsigned height, ptrdiff_t input_stride,
-                       uint8_t *output, ptrdiff_t output_stride,
-                       enum SKRY_CFA_pattern CFA_pattern, enum SKRY_demosaic_method method)
+/// Performs demosaicing of 8-bit 'input' and saves as 8-bit RGB in 'output'
+/** 'width' and 'height' must be >= 6 */
+void demosaic_8_as_RGB(uint8_t *input, unsigned width, unsigned height,
+                       ptrdiff_t input_stride, ///< line stride in bytes
+                       uint8_t *output,
+                       ptrdiff_t output_stride, ///< line stride in bytes
+                       /// Color filter array pattern in 'input'
+                       enum SKRY_CFA_pattern CFA_pattern,
+                       enum SKRY_demosaic_method method)
 {
     if (method == SKRY_DEMOSAIC_SIMPLE)
         DEMOSAIC(uint8_t, uint8_t, SIMPLE, RGB, 3, 0xFF);
@@ -485,9 +491,15 @@ void demosaic_8_as_RGB(uint8_t *input, unsigned width, unsigned height, ptrdiff_
         DEMOSAIC(uint8_t, uint8_t, HQLINEAR, RGB, 3, 0xFF);
 }
 
-void demosaic_8_as_mono8(uint8_t *input, unsigned width, unsigned height, ptrdiff_t input_stride,
-                         uint8_t *output, ptrdiff_t output_stride,
-                         enum SKRY_CFA_pattern CFA_pattern, enum SKRY_demosaic_method method)
+/// Performs demosaicing of 8-bit 'input' and saves as 8-bit mono in 'output'
+/** 'width' and 'height' must be >= 6 */
+void demosaic_8_as_mono8(uint8_t *input, unsigned width, unsigned height,
+                         ptrdiff_t input_stride, ///< line stride in bytes
+                         uint8_t *output,
+                         ptrdiff_t output_stride, ///< line stride in bytes
+                         /// Color filter array pattern in 'input'
+                         enum SKRY_CFA_pattern CFA_pattern,
+                         enum SKRY_demosaic_method method)
 {
     if (method == SKRY_DEMOSAIC_SIMPLE)
         DEMOSAIC(uint8_t, uint8_t, SIMPLE, MONO8_from_RGB8, 1, 0xFF);
@@ -495,9 +507,15 @@ void demosaic_8_as_mono8(uint8_t *input, unsigned width, unsigned height, ptrdif
         DEMOSAIC(uint8_t, uint8_t, HQLINEAR, MONO8_from_RGB8, 1, 0xFF);
 }
 
-void demosaic_16_as_RGB(uint16_t *input, unsigned width, unsigned height, ptrdiff_t input_stride,
-                        uint16_t *output, ptrdiff_t output_stride,
-                        enum SKRY_CFA_pattern CFA_pattern, enum SKRY_demosaic_method method)
+/// Performs demosaicing of 16-bit 'input' and saves as 16-bit RGB in 'output'
+/** 'width' and 'height' must be >= 6 */
+void demosaic_16_as_RGB(uint16_t *input, unsigned width, unsigned height,
+                        ptrdiff_t input_stride, ///< line stride in bytes
+                        uint16_t *output,
+                        ptrdiff_t output_stride, ///< line stride in bytes
+                        /// Color filter array pattern in 'input'
+                        enum SKRY_CFA_pattern CFA_pattern,
+                        enum SKRY_demosaic_method method)
 {
     if (method == SKRY_DEMOSAIC_SIMPLE)
         DEMOSAIC(uint16_t, uint16_t, SIMPLE, RGB, 3, 0xFFFF);
@@ -505,9 +523,15 @@ void demosaic_16_as_RGB(uint16_t *input, unsigned width, unsigned height, ptrdif
         DEMOSAIC(uint16_t, uint16_t, HQLINEAR, RGB, 3, 0xFFFF);
 }
 
-void demosaic_16_as_mono8(uint16_t *input, unsigned width, unsigned height, ptrdiff_t input_stride,
-                          uint8_t *output, ptrdiff_t output_stride,
-                          enum SKRY_CFA_pattern CFA_pattern, enum SKRY_demosaic_method method)
+/// Performs demosaicing of 16-bit 'input' and saves as 8-bit mono in 'output'
+/** 'width' and 'height' must be >= 6 */
+void demosaic_16_as_mono8(uint16_t *input, unsigned width, unsigned height,
+                          ptrdiff_t input_stride, ///< line stride in bytes
+                          uint8_t *output,
+                          ptrdiff_t output_stride, ///< line stride in bytes
+                          /// Color filter array pattern in 'input'
+                          enum SKRY_CFA_pattern CFA_pattern,
+                          enum SKRY_demosaic_method method)
 {
     if (method == SKRY_DEMOSAIC_SIMPLE)
         DEMOSAIC(uint16_t, uint8_t, SIMPLE, MONO8_from_RGB16, 1, 0xFFFF);
@@ -515,6 +539,7 @@ void demosaic_16_as_mono8(uint16_t *input, unsigned width, unsigned height, ptrd
         DEMOSAIC(uint16_t, uint8_t, HQLINEAR, MONO8_from_RGB16, 1, 0xFFFF);
 }
 
+/// Returns 'pattern' translated by (dx, dy), where dx, dy are 0 or 1
 enum SKRY_CFA_pattern translate_CFA_pattern(enum SKRY_CFA_pattern pattern,
                                             unsigned dx, unsigned dy)
 {

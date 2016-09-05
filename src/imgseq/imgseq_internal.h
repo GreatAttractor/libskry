@@ -60,6 +60,8 @@ struct SKRY_img_sequence
 };
 
 /// Must be called after img_seq->num_images has been set
-void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool);
+void base_init(struct SKRY_img_sequence *img_seq,
+               /// May be null
+               SKRY_ImagePool *img_pool);
 
 #endif // LIB_STACKISTRY_IMG_SEQ_INTERNAL_HEADER

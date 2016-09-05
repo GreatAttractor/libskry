@@ -193,7 +193,9 @@ enum SKRY_result box_blur(uint8_t *src, uint8_t *blurred, unsigned width, unsign
     return SKRY_SUCCESS;
 }
 
-SKRY_Image *box_blur_img(SKRY_Image *img, unsigned box_radius, size_t iterations)
+/// Returns blurred image (SKRY_PIX_MONO8)
+/** Requirements: img is SKRY_PIX_MONO8, box_radius < 2^11 */
+struct SKRY_image *box_blur_img(struct SKRY_image *img, unsigned box_radius, size_t iterations)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
 
@@ -205,6 +207,11 @@ SKRY_Image *box_blur_img(SKRY_Image *img, unsigned box_radius, size_t iterations
     return blurred;
 }
 
+/// Estimates quality of the specified area (8 bits per pixel)
+/** Quality is the sum of differences between input image
+    and its blurred version. In other words, sum of values
+    of the high-frequency component. The sum is normalized
+    by dividing by the number of pixels. */
 SKRY_quality_t estimate_quality(uint8_t *pixels, unsigned width, unsigned height, ptrdiff_t line_stride, unsigned box_blur_radius)
 {
     uint8_t *blurred = malloc(width*height);

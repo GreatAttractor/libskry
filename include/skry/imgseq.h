@@ -80,7 +80,7 @@ SKRY_Image *SKRY_get_curr_img(const SKRY_ImgSequence *img_seq,
     is not yet exhausted. Otherwise, the image is read as usual and converted
     without being added to the pool.
     In any case, once the caller is done with the image, it *has to* call
-    'SKRY_release_img' and must not attempt to free the returned image. */
+    'SKRY_release_img_to_pool' and must not attempt to free the returned image. */
 SKRY_Image *SKRY_get_curr_img_from_pool(
               const SKRY_ImgSequence *img_seq,
               enum SKRY_pixel_format pix_fmt,
@@ -109,7 +109,8 @@ SKRY_Image *SKRY_get_img_by_index(const SKRY_ImgSequence *img_seq, size_t index,
 void SKRY_deactivate_img_seq(SKRY_ImgSequence *img_seq);
 
 void SKRY_set_active_imgs(SKRY_ImgSequence *img_seq,
-                          /// Element count = number of images in 'img_seq'
+                          /** Element count = number of images in 'img_seq'.
+                              Non-zero values indicate active images. */
                           const uint8_t *active_imgs);
 
 int SKRY_is_img_active(const SKRY_ImgSequence *img_seq, size_t img_idx);

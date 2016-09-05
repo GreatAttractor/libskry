@@ -32,7 +32,8 @@ File description:
 #include "../utils/misc.h"
 
 
-struct SKRY_img_sequence *SKRY_free_img_sequence(struct SKRY_img_sequence *img_seq)
+/// Returns null
+SKRY_ImgSequence *SKRY_free_img_sequence(SKRY_ImgSequence *img_seq)
 {
     if (img_seq)
     {
@@ -43,17 +44,19 @@ struct SKRY_img_sequence *SKRY_free_img_sequence(struct SKRY_img_sequence *img_s
     return 0;
 }
 
-size_t SKRY_get_curr_img_idx(const struct SKRY_img_sequence *img_seq)
+/// Returns absolute index (refers to the whole set, including non-active images)
+size_t SKRY_get_curr_img_idx(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->curr_image_idx;
 }
 
-size_t SKRY_get_img_count(const struct SKRY_img_sequence *img_seq)
+size_t SKRY_get_img_count(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->num_images;
 }
 
-void SKRY_seek_start(struct SKRY_img_sequence *img_seq)
+/// Seeks to the first active image
+void SKRY_seek_start(SKRY_ImgSequence *img_seq)
 {
     img_seq->curr_image_idx = 0;
     while (!img_seq->is_img_active[img_seq->curr_image_idx])
@@ -62,8 +65,9 @@ void SKRY_seek_start(struct SKRY_img_sequence *img_seq)
     img_seq->curr_img_idx_within_active_subset = 0;
 }
 
-SKRY_Image *SKRY_get_curr_img(const struct SKRY_img_sequence *img_seq,
-                              enum SKRY_result *result)
+SKRY_Image *SKRY_get_curr_img(const SKRY_ImgSequence *img_seq,
+                              enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     SKRY_Image *img = img_seq->get_curr_img(img_seq, result);
     if (img)
@@ -80,10 +84,11 @@ SKRY_Image *SKRY_get_curr_img(const struct SKRY_img_sequence *img_seq,
     return img;
 }
 
-enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_seq,
-                                            unsigned *width,
-                                            unsigned *height,
-                                            enum SKRY_pixel_format *pix_fmt)
+enum SKRY_result SKRY_get_curr_img_metadata(const SKRY_ImgSequence *img_seq,
+                                        unsigned *width,  ///< If not null, receives current image's width
+                                        unsigned *height, ///< If not null, receives current image's height
+                                        enum SKRY_pixel_format *pix_fmt ///< If not null, receives current image's pixel format
+)
 {
     enum SKRY_result result = img_seq->get_curr_img_metadata(img_seq, width, height, pix_fmt);
     if (SKRY_SUCCESS == result)
@@ -116,7 +121,8 @@ enum SKRY_result SKRY_get_curr_img_metadata(const struct SKRY_img_sequence *img_
     return result;
 }
 
-enum SKRY_result SKRY_seek_next(struct SKRY_img_sequence *img_seq)
+/// Seeks forward to the next active image; returns SKRY_SUCCESS or SKRY_NO_MORE_IMAGES
+enum SKRY_result SKRY_seek_next(SKRY_ImgSequence *img_seq)
 {
     if (img_seq->curr_image_idx < img_seq->last_active_idx)
     {
@@ -134,8 +140,9 @@ enum SKRY_result SKRY_seek_next(struct SKRY_img_sequence *img_seq)
         return SKRY_NO_MORE_IMAGES;
 }
 
-SKRY_Image *SKRY_get_img_by_index(const struct SKRY_img_sequence *img_seq, size_t index,
-                                  enum SKRY_result *result)
+SKRY_Image *SKRY_get_img_by_index(const SKRY_ImgSequence *img_seq, size_t index,
+                                  enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     SKRY_Image *img = img_seq->get_img_by_index(img_seq, index, result);
     if (img)
@@ -151,14 +158,21 @@ SKRY_Image *SKRY_get_img_by_index(const struct SKRY_img_sequence *img_seq, size_
     return img;
 }
 
-void SKRY_deactivate_img_seq(struct SKRY_img_sequence *img_seq)
+/// Should be called when 'img_seq' will not be read for some time
+/** In case of image lists, the function does nothing. For video files, it closes them.
+    Video files are opened automatically (and kept open) every time a frame is loaded. */
+void SKRY_deactivate_img_seq(SKRY_ImgSequence *img_seq)
 {
     img_seq->deactivate_img_seq(img_seq);
 }
 
-struct SKRY_img_sequence *SKRY_init_video_file(const char *file_name,
-                                               SKRY_ImagePool *img_pool,
-                                               enum SKRY_result *result)
+SKRY_ImgSequence *SKRY_init_video_file(
+    const char *file_name,
+    /** If not null, will be used to keep converted images in memory for use
+        by subsequent processing phases. */
+    SKRY_ImagePool *img_pool,
+    /// If not null, receives operation result
+    enum SKRY_result *result)
 {
     if (compare_extension(file_name, "avi"))
         return init_AVI(file_name, img_pool, result);
@@ -171,7 +185,10 @@ struct SKRY_img_sequence *SKRY_init_video_file(const char *file_name,
     }
 }
 
-void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool)
+/// Must be called after img_seq->num_images has been set
+void base_init(SKRY_ImgSequence *img_seq,
+               /// May be null
+               SKRY_ImagePool *img_pool)
 {
     img_seq->is_img_active = malloc(img_seq->num_images * sizeof(*img_seq->is_img_active));
     memset(img_seq->is_img_active, 1, img_seq->num_images);
@@ -186,7 +203,9 @@ void base_init(struct SKRY_img_sequence *img_seq, SKRY_ImagePool *img_pool)
     img_seq->CFA_pattern = SKRY_CFA_NONE;
 }
 
-void SKRY_set_active_imgs(struct SKRY_img_sequence *img_seq,
+void SKRY_set_active_imgs(SKRY_ImgSequence *img_seq,
+                          /** Element count = number of images in 'img_seq'.
+                              Non-zero values indicate active images. */
                           const uint8_t *active_imgs)
 {
     memcpy(img_seq->is_img_active, active_imgs, img_seq->num_images);
@@ -201,31 +220,33 @@ void SKRY_set_active_imgs(struct SKRY_img_sequence *img_seq,
     }
 }
 
-int SKRY_is_img_active(const struct SKRY_img_sequence *img_seq, size_t img_idx)
+int SKRY_is_img_active(const SKRY_ImgSequence *img_seq, size_t img_idx)
 {
     return img_seq->is_img_active[img_idx];
 }
 
-const uint8_t *SKRY_get_img_active_flags(const struct SKRY_img_sequence *img_seq)
+/// Element count of result = number of images in 'img_seq'
+const uint8_t *SKRY_get_img_active_flags(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->is_img_active;
 }
 
-size_t SKRY_get_active_img_count(const struct SKRY_img_sequence *img_seq)
+size_t SKRY_get_active_img_count(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->num_active_images;
 }
 
-size_t SKRY_get_curr_img_idx_within_active_subset(const struct SKRY_img_sequence *img_seq)
+size_t SKRY_get_curr_img_idx_within_active_subset(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->curr_img_idx_within_active_subset;
 }
 
-enum SKRY_img_sequence_type SKRY_get_img_seq_type(const struct SKRY_img_sequence *img_seq)
+enum SKRY_img_sequence_type SKRY_get_img_seq_type(const SKRY_ImgSequence *img_seq)
 {
     return img_seq->type;
 }
 
+/// Disconnects 'img_seq' from the image pool that was specified during 'img_seq's creation (if any)
 void SKRY_disconnect_from_img_pool(SKRY_ImgSequence *img_seq)
 {
     if (img_seq->img_pool)
@@ -243,7 +264,11 @@ void SKRY_disconnect_from_img_pool(SKRY_ImgSequence *img_seq)
         return 0;                    \
     } while (0)
 
-SKRY_Image *SKRY_create_flatfield(SKRY_ImgSequence *img_seq, enum SKRY_result *result)
+SKRY_Image *SKRY_create_flatfield(
+    /// All images must have the same size
+    SKRY_ImgSequence *img_seq,
+    /// If not null, receives operation result
+    enum SKRY_result *result)
 {
     SKRY_Image *flatfield = 0;
     unsigned width, height;
@@ -309,11 +334,21 @@ SKRY_Image *SKRY_create_flatfield(SKRY_ImgSequence *img_seq, enum SKRY_result *r
 
 #undef FAIL
 
+/// Returns the current image in specified format
+/** If 'img_seq' is connected to an image pool, the image is taken from the pool
+    if it exists there (and has 'pix_fmt'). If the image is not yet in the pool,
+    it will be converted to 'pix_fmt' and stored there, if the pool's capacity
+    is not yet exhausted. Otherwise, the image is read as usual and converted
+    without being added to the pool.
+    In any case, once the caller is done with the image, it *has to* call
+    'SKRY_release_img_to_pool' and must not attempt to free the returned image. */
 SKRY_Image *SKRY_get_curr_img_from_pool(
               const SKRY_ImgSequence *img_seq,
               enum SKRY_pixel_format pix_fmt,
+              /// Used if source image contains raw color data
               enum SKRY_demosaic_method demosaic_method,
-              enum SKRY_result *result)
+              enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     if (result) *result = SKRY_SUCCESS;
 
@@ -386,6 +421,8 @@ SKRY_Image *SKRY_get_curr_img_from_pool(
     }
 }
 
+/** Has to be called for the image returned by 'SKRY_get_curr_img_from_pool',
+    when the image is no longer needed by the caller. */
 void SKRY_release_img_to_pool(const SKRY_ImgSequence *img_seq, size_t img_idx, SKRY_Image *image)
 {
     if (img_seq->img_pool &&
@@ -397,7 +434,16 @@ void SKRY_release_img_to_pool(const SKRY_ImgSequence *img_seq, size_t img_idx, S
         SKRY_free_image(image);
 }
 
-void SKRY_reinterpret_img_seq_as_CFA(SKRY_ImgSequence *img_seq, enum SKRY_CFA_pattern CFA_pattern)
+/// Treat mono images in 'img_seq' as containing raw color data
+/** Applies only to 8/16-bit mono and raw color images. Only pixel format is updated,
+    the pixel data is unchanged. To demosaic, use one of the pixel format
+    conversion functions.
+    For SER videos marked as raw color, there is no need to call this function.
+    However, it can be used to override the CFA pattern indicated in the SER header. */
+void SKRY_reinterpret_img_seq_as_CFA(
+         SKRY_ImgSequence *img_seq,
+         /// Specify SKRY_CFA_NONE to disable pixel format overriding
+         enum SKRY_CFA_pattern CFA_pattern)
 {
     img_seq->CFA_pattern = CFA_pattern;
 }

@@ -31,6 +31,9 @@ void list_remove(struct list_node **list, struct list_node *node)
         node->next->prev = prev;
 }
 
+/** Frees all nodes (calling 'fn_free_node_data' on each node's 'data' field)
+    and sets 'list' to null.
+    'fn_free_node_data' must not free the 'list_node' structs. */
 void list_free(struct list_node **list, void (*fn_free_node_data)(void *))
 {
     struct list_node *curr = *list;

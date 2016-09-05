@@ -170,19 +170,21 @@ triangle_point_list_t rasterize_triangle(
         return 0;                                 \
     }
 
-struct SKRY_stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align,
-                                         const SKRY_Image *flatfield,
-                                         enum SKRY_result *result)
+SKRY_Stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align,
+                                  /// May be null; no longer used after the function returns
+                                  const SKRY_Image *flatfield,
+                                  /// If not null, receives operation result
+                                  enum SKRY_result *result)
 {
     SKRY_ImgSequence *img_seq = SKRY_get_img_seq(SKRY_get_img_align(SKRY_get_qual_est(ref_pt_align)));
     SKRY_seek_start(img_seq);
 
-    struct SKRY_stacking *stacking = malloc(sizeof(*stacking));
+    SKRY_Stacking *stacking = malloc(sizeof(*stacking));
     FAIL_ON_NULL(stacking);
 
     // Sets all pointer fields to null, so it is safe to call SKRY_free_stacking()
     // via FAIL_ON_NULL() in case one of allocation fails.
-    *stacking = (struct SKRY_stacking) { 0 };
+    *stacking = (SKRY_Stacking) { 0 };
 
     stacking->statistics.time.start = SKRY_clock_sec();
     stacking->ref_pt_align = ref_pt_align;
@@ -265,7 +267,8 @@ struct SKRY_stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align
     return stacking;
 }
 
-struct SKRY_stacking *SKRY_free_stacking(struct SKRY_stacking *stacking)
+/// Returns null
+SKRY_Stacking *SKRY_free_stacking(SKRY_Stacking *stacking)
 {
     if (stacking)
     {
@@ -346,7 +349,8 @@ void normalize_image_stack(
         }
 }
 
-enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
+/// Returns SKRY_SUCCESS (i.e. more steps left to do), SKRY_LAST_STEP (no more steps) or an error
+enum SKRY_result SKRY_stacking_step(SKRY_Stacking *stacking)
 {
     enum SKRY_result result;
     SKRY_ImgSequence *img_seq = SKRY_get_img_seq(SKRY_get_img_align(SKRY_get_qual_est(stacking->ref_pt_align)));
@@ -530,7 +534,8 @@ enum SKRY_result SKRY_stacking_step(struct SKRY_stacking *stacking)
     return SKRY_SUCCESS;
 }
 
-const SKRY_Image *SKRY_get_image_stack(const struct SKRY_stacking *stacking)
+/// Can be used only after stacking completes
+const SKRY_Image *SKRY_get_image_stack(const SKRY_Stacking *stacking)
 {
     if (stacking->is_complete)
         return stacking->image_stack;
@@ -538,7 +543,8 @@ const SKRY_Image *SKRY_get_image_stack(const struct SKRY_stacking *stacking)
         return 0;
 }
 
-SKRY_Image *SKRY_get_partial_image_stack(const struct SKRY_stacking *stacking)
+/// Returns an incomplete image stack, updated after every stacking step
+SKRY_Image *SKRY_get_partial_image_stack(const SKRY_Stacking *stacking)
 {
     SKRY_Image *result = SKRY_get_img_copy(stacking->image_stack);
     normalize_image_stack(stacking->added_img_count, result,
@@ -546,20 +552,26 @@ SKRY_Image *SKRY_get_partial_image_stack(const struct SKRY_stacking *stacking)
     return result;
 }
 
-int SKRY_is_stacking_complete(const struct SKRY_stacking *stacking)
+int SKRY_is_stacking_complete(const SKRY_Stacking *stacking)
 {
     return stacking->is_complete;
 }
 
+/// Returns an array of triangle indices stacked in current step
+/** Meant to be called right after SKRY_stacking_step(). Values are indices into triangle array
+    of the triangulation returned by SKRY_get_ref_pts_triangulation(). Vertex coordinates do not
+    correspond with the triangulation, but with the array returned by 'SKRY_get_ref_pt_stacking_pos'. */
 const size_t *SKRY_get_curr_step_stacked_triangles(
-                const struct SKRY_stacking *stacking,
+                const SKRY_Stacking *stacking,
+                /// Receives length of the returned array
                 size_t *num_triangles)
 {
     *num_triangles = DA_SIZE(stacking->curr_step_stacked_triangles);
     return stacking->curr_step_stacked_triangles.data;
 }
 
-const struct SKRY_point_flt *SKRY_get_ref_pt_stacking_pos(const struct SKRY_stacking *stacking)
+/// Returns reference point positions as used during stacking
+const struct SKRY_point_flt *SKRY_get_ref_pt_stacking_pos(const SKRY_Stacking *stacking)
 {
     return stacking->final_ref_pt_pos;
 }

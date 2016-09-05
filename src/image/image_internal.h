@@ -31,13 +31,13 @@ File description:
 
 
 
-typedef     struct SKRY_image *fn_free(struct SKRY_image *);
-typedef               unsigned fn_get_width(const struct SKRY_image *);
-typedef               unsigned fn_get_height(const struct SKRY_image *);
-typedef              ptrdiff_t fn_get_line_stride_in_bytes(const struct SKRY_image *);
-typedef                 size_t fn_get_bytes_per_pixel(const struct SKRY_image *);
-typedef                  void *fn_get_line(const struct SKRY_image *, size_t);
-typedef       enum SKRY_result fn_get_palette(const struct SKRY_image *, struct SKRY_palette *);
+typedef      SKRY_Image *fn_free(SKRY_Image *);
+typedef         unsigned fn_get_width(const SKRY_Image *);
+typedef         unsigned fn_get_height(const SKRY_Image *);
+typedef        ptrdiff_t fn_get_line_stride_in_bytes(const SKRY_Image *);
+typedef           size_t fn_get_bytes_per_pixel(const SKRY_Image *);
+typedef            void *fn_get_line(const SKRY_Image *, size_t);
+typedef enum SKRY_result fn_get_palette(const SKRY_Image *, struct SKRY_palette *);
 
 struct SKRY_image
 {
@@ -67,6 +67,6 @@ struct internal_img_data
 #define IMG_DATA(img) ((struct internal_img_data *)(img)->data)
 
 /// Allocates and initializes an empty internal image structure; returns null if out of memory
-struct SKRY_image *create_internal_img(void);
+SKRY_Image *create_internal_img(void);
 
 #endif // LIB_STACKISTRY_IMAGE_INTERNAL_HEADER

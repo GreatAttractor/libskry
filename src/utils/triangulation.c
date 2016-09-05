@@ -82,7 +82,7 @@ struct SKRY_triangulation
 };
 
 static
-int is_inside_circumcircle(size_t pidx, size_t tidx, struct SKRY_triangulation *tri)
+int is_inside_circumcircle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
 {
     struct SKRY_point *p = &tri->vertices[pidx];
     struct SKRY_triangle *t = &tri->triangles.data[tidx];
@@ -148,7 +148,7 @@ int is_inside_circumcircle(size_t pidx, size_t tidx, struct SKRY_triangulation *
 //TODO: use the other "calc. bary..." function
 //FIXME: detect degenerate triangles
 static
-int is_inside_triangle(size_t pidx, size_t tidx, struct SKRY_triangulation *tri)
+int is_inside_triangle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
 {
     struct SKRY_point *p = &tri->vertices[pidx];
 
@@ -196,7 +196,7 @@ int is_inside_triangle(size_t pidx, size_t tidx, struct SKRY_triangulation *tri)
     After the swap is complete, recursively test e0, e1, e2 and e3.
 */
 static
-void test_and_swap_edge(struct SKRY_triangulation *tri, size_t e,
+void test_and_swap_edge(SKRY_Triangulation *tri, size_t e,
                         // edges to skip when checking what needs swapping
                         size_t eskip1, size_t eskip2)
 {
@@ -382,11 +382,15 @@ void test_and_swap_edge(struct SKRY_triangulation *tri, size_t e,
         test_and_swap_edge(tri, edges_to_check[i], e, SKRY_EMPTY);
 }
 
-struct SKRY_triangulation *SKRY_find_delaunay_triangulation(
+/** Finds Delaunay triangulation for the specified point set; also adds (at the end
+    of points' list) three additional points for the initial triangle which covers
+    the whole set and 'envelope'. Returns null if out of memory. */
+SKRY_Triangulation *SKRY_find_delaunay_triangulation(
                 size_t num_points, struct SKRY_point points[],
+                /// Must be big enough to cover the whole set of 'points'
                 struct SKRY_rect envelope)
 {
-    struct SKRY_triangulation *tri = malloc(sizeof(*tri));
+    SKRY_Triangulation *tri = malloc(sizeof(*tri));
     if (!tri)
         return 0;
     tri->num_vertices = num_points + 3;
@@ -541,7 +545,8 @@ struct SKRY_triangulation *SKRY_find_delaunay_triangulation(
     return tri;
 }
 
-struct SKRY_triangulation *SKRY_free_triangulation(struct SKRY_triangulation *tri)
+/// Returns null
+SKRY_Triangulation *SKRY_free_triangulation(SKRY_Triangulation *tri)
 {
     if (tri)
     {
@@ -553,37 +558,37 @@ struct SKRY_triangulation *SKRY_free_triangulation(struct SKRY_triangulation *tr
     return 0;
 }
 
-size_t SKRY_get_num_vertices(const struct SKRY_triangulation *tri)
+size_t SKRY_get_num_vertices(const SKRY_Triangulation *tri)
 {
     return tri->num_vertices;
 }
 
-const struct SKRY_point *SKRY_get_vertices(const struct SKRY_triangulation *tri)
+const struct SKRY_point *SKRY_get_vertices(const SKRY_Triangulation *tri)
 {
     return tri->vertices;
 }
 
-const struct SKRY_edge *SKRY_get_edges(const struct SKRY_triangulation *tri)
+const struct SKRY_edge *SKRY_get_edges(const SKRY_Triangulation *tri)
 {
     return tri->edges.data;
 }
 
-const struct SKRY_triangle *SKRY_get_triangles(const struct SKRY_triangulation *tri)
+const struct SKRY_triangle *SKRY_get_triangles(const SKRY_Triangulation *tri)
 {
     return tri->triangles.data;
 }
 
-size_t SKRY_get_num_edges(const struct SKRY_triangulation *tri)
+size_t SKRY_get_num_edges(const SKRY_Triangulation *tri)
 {
     return DA_SIZE(tri->edges);
 }
 
-size_t SKRY_get_num_triangles(const struct SKRY_triangulation *tri)
+size_t SKRY_get_num_triangles(const SKRY_Triangulation *tri)
 {
     return DA_SIZE(tri->triangles);
 }
 
-//FIXME: detect degenerate triangles
+/// Finds barycentric coordinates of point 'p' in the triangle (v0, v1, v2) ('p' can be outside triangle)
 void SKRY_calc_barycentric_coords(struct SKRY_point p,
                                   struct SKRY_point v0,
                                   struct SKRY_point v1,
@@ -592,10 +597,12 @@ void SKRY_calc_barycentric_coords(struct SKRY_point p,
                                   float *v
 )
 {
+    //FIXME: detect degenerate triangles
     *u = ((float)(v1.y - v2.y) * (p.x - v2.x) + (float)(v2.x - v1.x) * (p.y - v2.y)) / ((float)(v1.y - v2.y) * (v0.x - v2.x) + (float)(v2.x - v1.x) * (v0.y - v2.y));
     *v = ((float)(v2.y - v0.y) * (p.x - v2.x) + (float)(v0.x - v2.x) * (p.y - v2.y)) / ((float)(v1.y - v2.y) * (v0.x - v2.x) + (float)(v2.x - v1.x) * (v0.y - v2.y));
 }
 
+/// Finds barycentric coordinates of point 'p' in the triangle (v0, v1, v2) ('p' can be outside triangle)
 void SKRY_calc_barycentric_coords_flt(struct SKRY_point p,
                                       struct SKRY_point_flt v0,
                                       struct SKRY_point_flt v1,

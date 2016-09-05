@@ -30,8 +30,9 @@ File description:
 #include "misc.h"
 
 
+/// Returns 1 on equality
 int compare_extension(const char *file_name,
-                      const char *extension
+                      const char *extension ///< lowercase without '.'
                      )
 {
     assert(file_name);
@@ -69,7 +70,11 @@ uint32_t get_sum_sqr_diffs_from_histogram(
     return sum_sqr_diffs;
 }
 
-uint8_t get_background_threshold(const SKRY_Image *img)
+/// Finds brightness level 'b' such that all pixels <= b belong to the background
+uint8_t get_background_threshold(
+    /// Must be SKRY_PIX_MONO8
+    const SKRY_Image *img
+)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
 
@@ -133,6 +138,8 @@ double default_clock_func(void)
 
 SKRY_clock_sec_fn *clock_func = default_clock_func;
 
+/** Provides a timer function used for timing of processing phases;
+    if not used, a default timer is used (with 1-second resolution). */
 void SKRY_set_clock_func(SKRY_clock_sec_fn new_clock_func)
 {
     clock_func = new_clock_func;
@@ -161,6 +168,7 @@ void find_min_max_brightness(const SKRY_Image *img, uint8_t *bmin, uint8_t *bmax
     }
 }
 
+/// Changes endianess of 16-bit words
 void swap_words16(SKRY_Image *img)
 {
     for (size_t j = 0; j < SKRY_get_img_height(img); j++)
@@ -177,6 +185,7 @@ int is_machine_big_endian()
     return *(char *)&one == 0;
 }
 
+/// Conditionally swaps bytes in a 32-bit value
 uint32_t cnd_swap_32(uint32_t x, int do_swap)
 {
     if (do_swap)
@@ -185,7 +194,7 @@ uint32_t cnd_swap_32(uint32_t x, int do_swap)
         return x;
 }
 
-
+/// Conditionally swaps two lower bytes of a 32-bit value
 uint32_t cnd_swap_16_in_32(uint32_t x, int do_swap)
 {
     if (do_swap)
@@ -195,6 +204,7 @@ uint32_t cnd_swap_16_in_32(uint32_t x, int do_swap)
 
 }
 
+/// Conditionally swaps bytes in a 16-bit value
 uint16_t cnd_swap_16(uint16_t x, int do_swap)
 {
     if (do_swap)

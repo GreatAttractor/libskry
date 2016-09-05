@@ -51,11 +51,11 @@ extern const size_t BITS_PER_CHANNEL[SKRY_NUM_PIX_FORMATS];
 /// Elements correspond with 'SKRY_output_format'
 extern const size_t OUTPUT_FMT_BITS_PER_CHANNEL[SKRY_OUTP_FMT_LAST];
 
-SKRY_Image *SKRY_free_image(SKRY_Image *img); /// Returns null
+SKRY_Image *SKRY_free_image(SKRY_Image *img); ///< Returns null
 
 /// Allocates a new image (with lines stored top-to-bottom, no padding)
 SKRY_Image *SKRY_new_image(
-    unsigned width, unsigned height, enum SKRY_pixel_format,
+    unsigned width, unsigned height, enum SKRY_pixel_format pixel_format,
     /// Can be null; if not null, used only if 'pixel_format' is PIX_PAL8
     const struct SKRY_palette *palette,
     int zero_fill);
@@ -139,10 +139,10 @@ SKRY_Image *SKRY_load_image(const char *file_name,
 
 /// Returns metadata without reading the pixel data
 enum SKRY_result SKRY_get_image_metadata(const char *file_name,
-                                           unsigned *width,  ///< If not null, receives image width
-                                           unsigned *height, ///< If not null, receives image height
-                                           enum SKRY_pixel_format *pix_fmt ///< If not null, receives pixel format
-                                          );
+                                         unsigned *width,  ///< If not null, receives image width
+                                         unsigned *height, ///< If not null, receives image height
+                                         enum SKRY_pixel_format *pix_fmt ///< If not null, receives pixel format
+);
 
 
 enum SKRY_result SKRY_save_image(const SKRY_Image *img, const char *file_name,

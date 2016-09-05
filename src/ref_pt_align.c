@@ -137,7 +137,7 @@ struct SKRY_ref_pt_alignment
 /** Makes sure that for every triangle there is at least 1 image
     where all 3 vertices are "valid". */
 static
-void ensure_tris_are_valid(struct SKRY_ref_pt_alignment *ref_pt_align)
+void ensure_tris_are_valid(SKRY_RefPtAlignment *ref_pt_align)
 {
     unsigned num_active_imgs = SKRY_get_active_img_count(SKRY_get_img_seq(SKRY_get_img_align(ref_pt_align->qual_est)));
 
@@ -213,7 +213,7 @@ int comparator(const void *val1, const void *val2)
 
 /// Returns null if out of memory
 static
-void *calc_triangle_quality(struct SKRY_ref_pt_alignment *ref_pt_align)
+void *calc_triangle_quality(SKRY_RefPtAlignment *ref_pt_align)
 {
     size_t num_active_imgs = SKRY_get_active_img_count(SKRY_get_img_seq(SKRY_get_img_align(ref_pt_align->qual_est)));
 
@@ -276,7 +276,7 @@ void *calc_triangle_quality(struct SKRY_ref_pt_alignment *ref_pt_align)
 
 static
 void update_ref_pt_positions(
-    struct SKRY_ref_pt_alignment *ref_pt_align,
+    SKRY_RefPtAlignment *ref_pt_align,
     const SKRY_Image *img, size_t img_idx,
     size_t num_active_imgs,
     enum SKRY_quality_criterion quality_criterion,
@@ -486,7 +486,7 @@ void update_ref_pt_positions(
 
 /// Returns pointer to the added point or null if out of memory
 static
-void *append_fixed_point(struct SKRY_ref_pt_alignment *ref_pt_align, struct SKRY_point pos, const SKRY_ImgSequence *img_seq)
+void *append_fixed_point(SKRY_RefPtAlignment *ref_pt_align, struct SKRY_point pos, const SKRY_ImgSequence *img_seq)
 {
     DA_APPEND(ref_pt_align->reference_pts,
         ((struct reference_point) { .qual_est_area = SKRY_EMPTY,
@@ -516,7 +516,7 @@ void *append_fixed_point(struct SKRY_ref_pt_alignment *ref_pt_align, struct SKRY
 
 /// Returns 'ref_pt_align' or null if out of memory
 static
-void *create_surrounding_fixed_points(struct SKRY_ref_pt_alignment *ref_pt_align,
+void *create_surrounding_fixed_points(SKRY_RefPtAlignment *ref_pt_align,
                                       struct SKRY_rect intersection,
                                       const SKRY_ImgSequence *img_seq)
 {
@@ -610,14 +610,25 @@ void *create_surrounding_fixed_points(struct SKRY_ref_pt_alignment *ref_pt_align
         return 0;                                  \
     }
 
-struct SKRY_ref_pt_alignment *SKRY_init_ref_pt_alignment(
+SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
     const SKRY_QualityEstimation *qual_est,
+    /// Number of elements in 'points'; if zero, points will be placed automatically
     size_t num_points,
+    /// Reference point positions; if null, points will be placed automatically
+    /** Positions are specified within the images' intersection.
+        The points must not lie outside it. */
     const struct SKRY_point *points,
+    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels.
+        Used only during automatic placement. */
     float placement_brightness_threshold,
+    /// Criterion for updating ref. point position (and later for stacking)
     enum SKRY_quality_criterion quality_criterion,
+    /// Interpreted according to 'quality_criterion'
     unsigned quality_threshold,
+    /// Spacing in pixels between reference points (used only during automatic placement)
     unsigned spacing,
+    /// If not null, receives operation result
     enum SKRY_result *result)
 {
     SKRY_Image *first_img = 0; // Will be freed by FAIL_ON_NULL() in case of error
@@ -626,12 +637,12 @@ struct SKRY_ref_pt_alignment *SKRY_init_ref_pt_alignment(
 
     SKRY_seek_start(img_seq);
 
-    struct SKRY_ref_pt_alignment *ref_pt_align = malloc(sizeof(*ref_pt_align));
+    SKRY_RefPtAlignment *ref_pt_align = malloc(sizeof(*ref_pt_align));
     FAIL_ON_NULL(ref_pt_align);
 
     // Sets all pointer fields to null, so it is safe to call SKRY_free_ref_pt_alignment()
     // via FAIL_ON_NULL() in case one of allocation fails.
-    *ref_pt_align = (struct SKRY_ref_pt_alignment) { 0 };
+    *ref_pt_align = (SKRY_RefPtAlignment) { 0 };
 
     ref_pt_align->statistics.time.start = SKRY_clock_sec();
 
@@ -761,7 +772,8 @@ struct SKRY_ref_pt_alignment *SKRY_init_ref_pt_alignment(
     return ref_pt_align;
 }
 
-struct SKRY_ref_pt_alignment *SKRY_free_ref_pt_alignment(struct SKRY_ref_pt_alignment *ref_pt_align)
+/// Returns null
+SKRY_RefPtAlignment *SKRY_free_ref_pt_alignment(SKRY_RefPtAlignment *ref_pt_align)
 {
     if (ref_pt_align)
     {
@@ -786,20 +798,23 @@ struct SKRY_ref_pt_alignment *SKRY_free_ref_pt_alignment(struct SKRY_ref_pt_alig
     return 0;
 }
 
-size_t SKRY_get_num_ref_pts(const struct SKRY_ref_pt_alignment *ref_pt_align)
+size_t SKRY_get_num_ref_pts(const SKRY_RefPtAlignment *ref_pt_align)
 {
     return DA_SIZE(ref_pt_align->reference_pts);
 }
 
-struct SKRY_point SKRY_get_ref_pt_pos(const struct SKRY_ref_pt_alignment *ref_pt_align,
-                                      size_t point_idx, size_t img_idx, int *is_valid)
+struct SKRY_point SKRY_get_ref_pt_pos(const SKRY_RefPtAlignment *ref_pt_align,
+                                      size_t point_idx, size_t img_idx,
+                                      /// If not null, receives 1 if the point is valid in specified image
+                                      int *is_valid)
 {
     const struct reference_point *ref_pt = &ref_pt_align->reference_pts.data[point_idx];
     if (is_valid) *is_valid = ref_pt->positions[img_idx].is_valid;
     return ref_pt->positions[img_idx].pos;
 }
 
-enum SKRY_result SKRY_ref_pt_alignment_step(struct SKRY_ref_pt_alignment *ref_pt_align)
+/// Returns SKRY_SUCCESS (i.e. more steps left to do), SKRY_LAST_STEP (no more steps) or an error
+enum SKRY_result SKRY_ref_pt_alignment_step(SKRY_RefPtAlignment *ref_pt_align)
 {
     SKRY_ImgSequence *img_seq = SKRY_get_img_seq(SKRY_get_img_align(ref_pt_align->qual_est));
 
@@ -857,17 +872,21 @@ enum SKRY_result SKRY_ref_pt_alignment_step(struct SKRY_ref_pt_alignment *ref_pt
     return SKRY_SUCCESS;
 }
 
-int SKRY_is_ref_pt_alignment_complete(const struct SKRY_ref_pt_alignment *ref_pt_align)
+int SKRY_is_ref_pt_alignment_complete(const SKRY_RefPtAlignment *ref_pt_align)
 {
     return ref_pt_align->is_complete;
 }
 
-const SKRY_QualityEstimation *SKRY_get_qual_est(const struct SKRY_ref_pt_alignment *ref_pt_align)
+/// Returns the quality estimation object associated with 'ref_pt_align'
+const SKRY_QualityEstimation *SKRY_get_qual_est(const SKRY_RefPtAlignment *ref_pt_align)
 {
     return ref_pt_align->qual_est;
 }
 
-struct SKRY_point_flt *SKRY_get_final_positions(const struct SKRY_ref_pt_alignment *ref_pt_align,
+/** Returns an array of final (i.e. averaged over all images) positions of reference points.
+    Returns null if out of memory or if alignment is not complete. */
+struct SKRY_point_flt *SKRY_get_final_positions(const SKRY_RefPtAlignment *ref_pt_align,
+                                                /// Receives the number of points
                                                 size_t *num_points)
 {
     if (!ref_pt_align->is_complete)
@@ -902,20 +921,25 @@ struct SKRY_point_flt *SKRY_get_final_positions(const struct SKRY_ref_pt_alignme
     return result;
 }
 
-int SKRY_is_ref_pt_valid(const struct SKRY_ref_pt_alignment *ref_pt_align, size_t pt_idx, size_t img_idx)
+int SKRY_is_ref_pt_valid(const SKRY_RefPtAlignment *ref_pt_align, size_t pt_idx, size_t img_idx)
 {
     return ref_pt_align->reference_pts.data[pt_idx].positions[img_idx].is_valid;
 }
 
-const struct SKRY_triangulation *SKRY_get_ref_pts_triangulation(const struct SKRY_ref_pt_alignment *ref_pt_align)
+/// Triangulation contains 3 additional points at the end of vertex list: a triangle that covers all the other points
+const struct SKRY_triangulation *SKRY_get_ref_pts_triangulation(const SKRY_RefPtAlignment *ref_pt_align)
 {
     return ref_pt_align->triangulation;
 }
 
+/// Returns an array of suggested reference point positions in 'img'; return null if out of memory
 struct SKRY_point *SKRY_suggest_ref_point_positions(
-    size_t *num_points,
-    const SKRY_Image *img,
+    size_t *num_points, ///< Receives number of elements in the result
+    const SKRY_Image *img, ///< Has to be SKRY_PIX_MONO8
+    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold,
+    /// Spacing in pixels between reference points
     unsigned spacing)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);

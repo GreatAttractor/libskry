@@ -360,6 +360,7 @@ void AVI_free(struct SKRY_img_sequence *img_seq)
 
 struct SKRY_img_sequence *init_AVI(const char *file_name,
                                    SKRY_ImagePool *img_pool,
+                                   /// If not null, receives operation result
                                    enum SKRY_result *result)
 {
     /*

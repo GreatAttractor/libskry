@@ -43,11 +43,11 @@ struct image_list_data
     size_t next_file_name_idx_to_add;
 };
 
-/// 'img_seq' is a pointer to 'struct SKRY_img_sequence'
+/// 'img_seq' is a pointer to 'SKRY_ImgSequence'
 #define IMG_LIST_DATA(img_seq) ((struct image_list_data *)img_seq->data)
 
 static
-void image_list_free(struct SKRY_img_sequence *img_seq)
+void image_list_free(SKRY_ImgSequence *img_seq)
 {
     if (img_seq)
     {
@@ -66,7 +66,7 @@ void image_list_free(struct SKRY_img_sequence *img_seq)
 
 static
 SKRY_Image *image_list_get_img(
-    const struct SKRY_img_sequence *img_seq,
+    const SKRY_ImgSequence *img_seq,
     size_t img_idx,
     enum SKRY_result *result ///< If not null, receives operation result
 )
@@ -99,7 +99,7 @@ SKRY_Image *image_list_get_img(
 
 static
 SKRY_Image *image_list_get_curr_img(
-    const struct SKRY_img_sequence *img_seq,
+    const SKRY_ImgSequence *img_seq,
     enum SKRY_result *result ///< If not null, receives operation result
 )
 {
@@ -108,7 +108,7 @@ SKRY_Image *image_list_get_curr_img(
 
 static
 enum SKRY_result image_list_get_curr_img_metadata(
-    const struct SKRY_img_sequence *img_seq,
+    const SKRY_ImgSequence *img_seq,
     unsigned *width,
     unsigned *height,
     enum SKRY_pixel_format *pix_fmt)
@@ -135,7 +135,7 @@ enum SKRY_result image_list_get_curr_img_metadata(
 }
 
 static
-void image_list_deactivate(struct SKRY_img_sequence *img_seq)
+void image_list_deactivate(SKRY_ImgSequence *img_seq)
 {
     // Do nothing
     (void)img_seq; // suppress the "unused parameter" warning
@@ -148,16 +148,19 @@ void image_list_deactivate(struct SKRY_img_sequence *img_seq)
         return 0;                        \
     }
 
-struct SKRY_img_sequence *SKRY_init_image_list(
+SKRY_ImgSequence *SKRY_init_image_list(
         size_t num_images,
+        /// If null, SKRY_image_list_add_img() must be later used to add 'num_images' file names
         const char *file_names[],
+        /** If not null, will be used to keep converted images in memory for use
+            by subsequent processing phases. */
         SKRY_ImagePool *img_pool)
 {
-    struct SKRY_img_sequence *img_seq = malloc(sizeof(*img_seq));
+    SKRY_ImgSequence *img_seq = malloc(sizeof(*img_seq));
     if (!img_seq)
         return 0;
 
-    *img_seq = (struct SKRY_img_sequence) { 0 };
+    *img_seq = (SKRY_ImgSequence) { 0 };
 
     img_seq->type = SKRY_IMG_SEQ_IMAGE_FILES;
     img_seq->num_images =             num_images;
@@ -195,7 +198,7 @@ struct SKRY_img_sequence *SKRY_init_image_list(
     return img_seq;
 }
 
-enum SKRY_result SKRY_image_list_add_img(struct SKRY_img_sequence *img_seq,
+enum SKRY_result SKRY_image_list_add_img(SKRY_ImgSequence *img_seq,
                              const char *file_name)
 {
     struct image_list_data *data = IMG_LIST_DATA(img_seq);

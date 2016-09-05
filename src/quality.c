@@ -116,7 +116,7 @@ struct SKRY_quality_estimation
     } statistics;
 };
 
-int SKRY_is_qual_est_complete(const struct SKRY_quality_estimation *qual_est)
+int SKRY_is_qual_est_complete(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->is_estimation_complete;
 }
@@ -131,9 +131,12 @@ int SKRY_is_qual_est_complete(const struct SKRY_quality_estimation *qual_est)
         return 0;                        \
     }
 
+/// Returns null if out of memory
 SKRY_QualityEstimation *SKRY_init_quality_est(
         const SKRY_ImgAlignment *img_algn,
+        /// Aligned image sequence will be divided into areas of this size for quality estimation
         unsigned estimation_area_size,
+        /// Corresponds with box blur radius used for quality estimation
         unsigned detail_scale)
 {
     assert(img_algn != 0);
@@ -143,13 +146,13 @@ SKRY_QualityEstimation *SKRY_init_quality_est(
     assert(SKRY_is_img_alignment_complete(img_algn));
     assert(detail_scale > 0);
 
-    struct SKRY_quality_estimation *qual_est = malloc(sizeof *qual_est);
+    SKRY_QualityEstimation *qual_est = malloc(sizeof *qual_est);
     if (!qual_est)
         return 0;
 
     // Sets all pointer fields to null, so it is safe to call SKRY_free_quality_est()
     // via FAIL_ON_NULL() in case one of allocation fails.
-    *qual_est = (struct SKRY_quality_estimation) { 0 };
+    *qual_est = (SKRY_QualityEstimation) { 0 };
 
     qual_est->area_size = estimation_area_size;
     qual_est->statistics.time.start = SKRY_clock_sec();
@@ -238,7 +241,7 @@ SKRY_QualityEstimation *SKRY_init_quality_est(
 
 /// Creates reference blocks for the quality estimation areas (using images where the areas have the best quality)
 static
-enum SKRY_result create_reference_blocks(struct SKRY_quality_estimation *qual_est)
+enum SKRY_result create_reference_blocks(SKRY_QualityEstimation *qual_est)
 {
     enum SKRY_result result = SKRY_SUCCESS;
 
@@ -314,7 +317,8 @@ enum SKRY_result create_reference_blocks(struct SKRY_quality_estimation *qual_es
     return result;
 }
 
-struct SKRY_quality_estimation *SKRY_free_quality_est(struct SKRY_quality_estimation *qual_est)
+/// Returns null
+SKRY_QualityEstimation *SKRY_free_quality_est(SKRY_QualityEstimation *qual_est)
 {
     if (qual_est)
     {
@@ -335,7 +339,7 @@ struct SKRY_quality_estimation *SKRY_free_quality_est(struct SKRY_quality_estima
 }
 
 static
-enum SKRY_result on_final_step(struct SKRY_quality_estimation *qual_est)
+enum SKRY_result on_final_step(SKRY_QualityEstimation *qual_est)
 {
     unsigned num_active_imgs = SKRY_get_active_img_count(SKRY_get_img_seq(qual_est->img_algn));
 
@@ -376,7 +380,8 @@ enum SKRY_result on_final_step(struct SKRY_quality_estimation *qual_est)
     return SKRY_LAST_STEP;
 }
 
-enum SKRY_result SKRY_quality_est_step(struct SKRY_quality_estimation *qual_est)
+/// Returns SKRY_SUCCESS (i.e. more steps left to do), SKRY_LAST_STEP (no more steps) or an error
+enum SKRY_result SKRY_quality_est_step(SKRY_QualityEstimation *qual_est)
 {
     enum SKRY_result result;
 
@@ -452,24 +457,26 @@ enum SKRY_result SKRY_quality_est_step(struct SKRY_quality_estimation *qual_est)
     return SKRY_SUCCESS;
 }
 
-size_t SKRY_get_qual_est_num_areas(const struct SKRY_quality_estimation *qual_est)
+size_t SKRY_get_qual_est_num_areas(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->num_areas;
 }
 
-void SKRY_get_images_quality(const struct SKRY_quality_estimation *qual_est,
-                             SKRY_quality_t qual_array[])
+/// Fills 'qual_array' with overall quality values of subsequent images
+void SKRY_get_images_quality(const SKRY_QualityEstimation *qual_est,
+    /// Element count = number of active images in img. sequence associated with 'qual_est'
+    SKRY_quality_t qual_array[])
 {
     memcpy(qual_array, qual_est->img_quality,
         sizeof(SKRY_quality_t) * SKRY_get_active_img_count(SKRY_get_img_seq(qual_est->img_algn)));
 }
 
-SKRY_quality_t SKRY_get_avg_area_quality(const struct SKRY_quality_estimation *qual_est, size_t area_idx)
+SKRY_quality_t SKRY_get_avg_area_quality(const SKRY_QualityEstimation *qual_est, size_t area_idx)
 {
     return qual_est->qual_summary[area_idx].avg;
 }
 
-void SKRY_get_area_quality_summary(const struct SKRY_quality_estimation *qual_est, size_t area_idx,
+void SKRY_get_area_quality_summary(const SKRY_QualityEstimation *qual_est, size_t area_idx,
                                    SKRY_quality_t *qmin,
                                    SKRY_quality_t *qmax,
                                    SKRY_quality_t *qavg)
@@ -479,23 +486,24 @@ void SKRY_get_area_quality_summary(const struct SKRY_quality_estimation *qual_es
     *qavg = qual_est->qual_summary[area_idx].avg;
 }
 
-
-const SKRY_ImgAlignment *SKRY_get_img_align(const struct SKRY_quality_estimation *qual_est)
+/// Returns the image alignment object associated with 'qual_est'
+const SKRY_ImgAlignment *SKRY_get_img_align(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->img_algn;
 }
 
-SKRY_quality_t SKRY_get_area_quality(const struct SKRY_quality_estimation *qual_est, size_t area_idx, size_t img_idx)
+SKRY_quality_t SKRY_get_area_quality(const SKRY_QualityEstimation *qual_est, size_t area_idx, size_t img_idx)
 {
     return qual_est->area_quality[area_idx + img_idx * qual_est->num_areas];
 }
 
-SKRY_quality_t SKRY_get_best_avg_area_quality(const struct SKRY_quality_estimation *qual_est)
+SKRY_quality_t SKRY_get_best_avg_area_quality(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->overall_quality.area.max_avg;
 }
 
-size_t SKRY_get_area_idx_at_pos(const struct SKRY_quality_estimation *qual_est,
+size_t SKRY_get_area_idx_at_pos(const SKRY_QualityEstimation *qual_est,
+                                /// Position within images' intersection
                                 struct SKRY_point pos)
 {
     // See SKRY_init_quality_est() for how the estimation areas are placed within the images' intersection.
@@ -506,9 +514,12 @@ size_t SKRY_get_area_idx_at_pos(const struct SKRY_quality_estimation *qual_est,
     return row*qual_est->num_areas_horz + col;
 }
 
+/// Returns a square image to be used as reference block; returns null if out of memory
 SKRY_Image *SKRY_create_reference_block(
-    const struct SKRY_quality_estimation *qual_est,
+    const SKRY_QualityEstimation *qual_est,
+    /// Center of the reference block (within images' intersection)
     struct SKRY_point pos,
+    /// Desired width & height; the result may be smaller than this (but always a square)
     unsigned blk_size)
 {
     assert(qual_est->is_estimation_complete);
@@ -553,7 +564,7 @@ SKRY_Image *SKRY_create_reference_block(
     return result;
 }
 
-struct SKRY_point SKRY_get_qual_est_area_center(const struct SKRY_quality_estimation *qual_est, size_t area_idx)
+struct SKRY_point SKRY_get_qual_est_area_center(const SKRY_QualityEstimation *qual_est, size_t area_idx)
 {
     struct SKRY_rect arect = qual_est->area_defs[area_idx].rect;
     return (struct SKRY_point)
@@ -561,12 +572,12 @@ struct SKRY_point SKRY_get_qual_est_area_center(const struct SKRY_quality_estima
               .y = arect.y + arect.height/2 };
 }
 
-SKRY_quality_t SKRY_get_min_nonzero_avg_area_quality(const struct SKRY_quality_estimation *qual_est)
+SKRY_quality_t SKRY_get_min_nonzero_avg_area_quality(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->overall_quality.area.min_nonzero_avg;
 }
 
-SKRY_quality_t SKRY_get_overall_avg_area_quality(const struct SKRY_quality_estimation *qual_est)
+SKRY_quality_t SKRY_get_overall_avg_area_quality(const SKRY_QualityEstimation *qual_est)
 {
     return qual_est->overall_quality.area.avg;
 }

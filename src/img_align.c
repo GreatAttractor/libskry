@@ -92,7 +92,8 @@ struct SKRY_img_alignment
     struct SKRY_point *img_offsets;
 };
 
-struct SKRY_img_alignment *SKRY_free_img_alignment(struct SKRY_img_alignment *img_algn)
+/// Returns null
+SKRY_ImgAlignment *SKRY_free_img_alignment(SKRY_ImgAlignment *img_algn)
 {
     // Note that we do not free the associated image sequence here; the user has to do it
     // (i.e. the one who allocated it).
@@ -113,7 +114,7 @@ struct SKRY_img_alignment *SKRY_free_img_alignment(struct SKRY_img_alignment *im
     return 0;
 }
 
-int SKRY_is_img_alignment_complete(const struct SKRY_img_alignment *img_algn)
+int SKRY_is_img_alignment_complete(const SKRY_ImgAlignment *img_algn)
 {
     return img_algn->is_complete;
 }
@@ -126,7 +127,7 @@ int SKRY_is_img_alignment_complete(const struct SKRY_img_alignment *img_algn)
         return 0;                                 \
     }
 
-struct SKRY_img_alignment *SKRY_init_img_alignment(
+SKRY_ImgAlignment *SKRY_init_img_alignment(
     SKRY_ImgSequence *img_seq,
     enum SKRY_img_alignment_method method,
 
@@ -170,12 +171,12 @@ struct SKRY_img_alignment *SKRY_init_img_alignment(
         return 0;
     }
 
-    struct SKRY_img_alignment *img_algn = malloc(sizeof(*img_algn));
+    SKRY_ImgAlignment *img_algn = malloc(sizeof(*img_algn));
     FAIL_ON_NULL(img_algn);
 
     // Sets all pointer fields to null, so it is safe to call SKRY_free_img_alignment()
     // via FAIL_ON_NULL() in case one of allocation fails.
-    *img_algn = (struct SKRY_img_alignment) { 0 };
+    *img_algn = (SKRY_ImgAlignment) { 0 };
 
     img_algn->img_seq = img_seq;
     img_algn->algn_method = method;
@@ -353,7 +354,8 @@ struct SKRY_point determine_img_offset_using_centroid(SKRY_ImgAlignment *img_alg
           .y = new_centroid_pos.y - img_algn->centroid_pos.y };
 }
 
-enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
+/// Returns SKRY_SUCCESS (i.e. more steps left to do), SKRY_LAST_STEP (no more steps) or an error
+enum SKRY_result SKRY_img_alignment_step(SKRY_ImgAlignment *img_algn)
 {
     enum SKRY_result result = SKRY_SUCCESS;
 
@@ -431,26 +433,32 @@ enum SKRY_result SKRY_img_alignment_step(struct SKRY_img_alignment *img_algn)
     }
 }
 
-size_t SKRY_get_anchor_count(const struct SKRY_img_alignment *img_algn)
+/** The return value may increase during processing (when all existing
+    anchors became invalid and a new one(s) had to be automatically created). */
+size_t SKRY_get_anchor_count(const SKRY_ImgAlignment *img_algn)
 {
     return DA_SIZE(img_algn->anchors);
 }
 
-void SKRY_get_anchors(const struct SKRY_img_alignment *img_algn,
+/// Returns current positions of anchor points
+void SKRY_get_anchors(const SKRY_ImgAlignment *img_algn,
+                      /// Has to have room for at least SKRY_get_anchor_count() elements
                       struct SKRY_point points[])
 {
     for (size_t i = 0; i < DA_SIZE(img_algn->anchors); i++)
         points[i] = img_algn->anchors.data[i].pos;
 }
 
-struct SKRY_point SKRY_get_intersection_ofs(const struct SKRY_img_alignment *img_algn)
+/// Returns offset of images' intersection relative to the first image's origin
+struct SKRY_point SKRY_get_intersection_ofs(const SKRY_ImgAlignment *img_algn)
 {
     return img_algn->intersection.offset;
 }
 
-void SKRY_get_intersection_size(const struct SKRY_img_alignment *img_algn,
-                                unsigned *width,
-                                unsigned *height)
+void SKRY_get_intersection_size(const SKRY_ImgAlignment *img_algn,
+                                unsigned *width, ///< If not null, receives width of images' intersection
+                                unsigned *height ///< If not null, receives height of images' intersection
+)
 {
     if (width)
         *width = img_algn->intersection.width;
@@ -458,17 +466,19 @@ void SKRY_get_intersection_size(const struct SKRY_img_alignment *img_algn,
         *height = img_algn->intersection.height;
 }
 
-struct SKRY_point SKRY_get_image_ofs(const struct SKRY_img_alignment *img_algn, size_t img_idx)
+struct SKRY_point SKRY_get_image_ofs(const SKRY_ImgAlignment *img_algn, size_t img_idx)
 {
     return img_algn->img_offsets[img_idx];
 }
 
-SKRY_ImgSequence *SKRY_get_img_seq(const struct SKRY_img_alignment *img_algn)
+/// Returns the associated image sequence
+SKRY_ImgSequence *SKRY_get_img_seq(const SKRY_ImgAlignment *img_algn)
 {
     return img_algn->img_seq;
 }
 
-struct SKRY_rect SKRY_get_intersection(const struct SKRY_img_alignment *img_algn)
+/// Returns the images' intersection (position relative to the first image's origin)
+struct SKRY_rect SKRY_get_intersection(const SKRY_ImgAlignment *img_algn)
 {
     return (struct SKRY_rect) { .x = img_algn->intersection.offset.x,
                                 .y = img_algn->intersection.offset.y,
@@ -476,8 +486,11 @@ struct SKRY_rect SKRY_get_intersection(const struct SKRY_img_alignment *img_algn
                                 .height = img_algn->intersection.height };
 }
 
+/// Returns optimal position of a video stabilization anchor in 'image'
 struct SKRY_point SKRY_suggest_anchor_pos(
     const SKRY_Image *image,
+    /// Min. image brightness that an anchor point can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
     float placement_brightness_threshold,
     unsigned ref_block_size)
 {
@@ -535,7 +548,7 @@ int SKRY_is_anchor_valid(const SKRY_ImgAlignment *img_algn, size_t anchor_idx)
     return img_algn->anchors.data[anchor_idx].is_valid;
 }
 
-enum SKRY_img_alignment_method SKRY_get_alignment_method(const struct SKRY_img_alignment *img_algn)
+enum SKRY_img_alignment_method SKRY_get_alignment_method(const SKRY_ImgAlignment *img_algn)
 {
     return img_algn->algn_method;
 }

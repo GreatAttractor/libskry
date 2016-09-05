@@ -77,8 +77,10 @@ void convert_BMP_palette(uint32_t num_used_pal_entries, const struct BMP_palette
     }
 }
 
+/// Returns null on error
 SKRY_Image *load_BMP(const char *file_name,
-                     enum SKRY_result *result)
+                     enum SKRY_result *result ///< If not null, receives operation result
+)
 {
     FILE *file = fopen(file_name, "rb");
     if (!file)
@@ -397,10 +399,12 @@ enum SKRY_result save_BMP(const SKRY_Image *img, const char *file_name)
     return SKRY_SUCCESS;
 }
 
+/// Returns metadata without reading the pixel data
 enum SKRY_result get_BMP_metadata(const char *file_name,
-                                  unsigned *width,
-                                  unsigned *height,
-                                  enum SKRY_pixel_format *pix_fmt)
+                                  unsigned *width,  ///< If not null, receives image width
+                                  unsigned *height, ///< If not null, receives image height
+                                  enum SKRY_pixel_format *pix_fmt ///< If not null, receives pixel format
+)
 {
     FILE *file = fopen(file_name, "rb");
     if (!file)

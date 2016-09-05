@@ -36,13 +36,20 @@ struct SKRY_image_pool
     struct list_node *LRU;
 };
 
-struct SKRY_image_pool *SKRY_create_image_pool(size_t capacity)
+/// Returns null if out of memory
+SKRY_ImagePool *SKRY_create_image_pool(
+    /// Value in bytes
+    /** Concerns only the size of stored images. The pool's internal data
+        structures occupy additional memory (e.g. for 1000 registered image
+        sequences with 1000 images each, on a system with 64-bit pointers
+        there will be additional 20+ megabytes used. */
+    size_t capacity)
 {
-    struct SKRY_image_pool *img_pool = malloc(sizeof(*img_pool));
+    SKRY_ImagePool *img_pool = malloc(sizeof(*img_pool));
     if (!img_pool)
         return 0;
 
-    *img_pool = (struct SKRY_image_pool) { 0 };
+    *img_pool = (SKRY_ImagePool) { 0 };
     img_pool->capacity = capacity;
 
     LOG_MSG(SKRY_LOG_IMG_POOL, "Created image pool %p (%.1f MiB capacity).",
@@ -51,7 +58,9 @@ struct SKRY_image_pool *SKRY_create_image_pool(size_t capacity)
     return img_pool;
 }
 
-struct list_node *connect_img_sequence(struct SKRY_image_pool *img_pool, SKRY_ImgSequence *img_seq)
+/** Returns a pointer to be later passed to all functions that expect 'img_seq_node'.
+    Returns null if out of memory. */
+struct list_node *connect_img_sequence(SKRY_ImagePool *img_pool, SKRY_ImgSequence *img_seq)
 {
     struct img_seq_entry *data = malloc(sizeof(*data));
     if (!data)
@@ -79,7 +88,9 @@ struct list_node *connect_img_sequence(struct SKRY_image_pool *img_pool, SKRY_Im
     return img_pool->img_seq_nodes;
 }
 
-void disconnect_img_sequence(struct SKRY_image_pool *img_pool, struct list_node *img_seq_node)
+void disconnect_img_sequence(SKRY_ImagePool *img_pool,
+                             /// Pointer returned by connect_img_sequence()
+                             struct list_node *img_seq_node)
 {
     struct img_seq_entry *entry = (struct img_seq_entry *)img_seq_node->data;
     for (size_t i = 0; i < entry->num_images; i++)
@@ -96,7 +107,7 @@ void disconnect_img_sequence(struct SKRY_image_pool *img_pool, struct list_node 
 }
 
 static
-void mark_as_MRU(struct SKRY_image_pool *img_pool, struct list_node *img_seq_node)
+void mark_as_MRU(SKRY_ImagePool *img_pool, struct list_node *img_seq_node)
 {
     struct list_node *MRU = img_pool->img_seq_nodes;
 
@@ -122,7 +133,14 @@ void mark_as_MRU(struct SKRY_image_pool *img_pool, struct list_node *img_seq_nod
             (void *)img_pool);
 }
 
-void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
+/** If an image has been already added for this 'img_seq' and 'img_index', it will be freed
+    and replaced by 'img'. Otherwise, if adding 'img' would exceed the pool's memory size limit,
+    images of the least recently used img. sequence in 'pool' will be removed and freed,
+    until there is sufficient room. If all images other than those of 'img_seq_node'
+    have been removed and there is still no room, the image will not be added to 'img_pool'. */
+void put_image_in_pool(SKRY_ImagePool *img_pool,
+                       /// Pointer returned by connect_img_sequence()
+                       struct list_node *img_seq_node,
                        size_t img_index, SKRY_Image *img)
 {
     assert(img_seq_node);
@@ -184,7 +202,11 @@ void put_image_in_pool(SKRY_ImagePool *img_pool, struct list_node *img_seq_node,
     }
 }
 
-SKRY_Image *get_image_from_pool(struct SKRY_image_pool *img_pool, struct list_node *img_seq_node, size_t img_idx)
+/// May return null; the caller must not attempt to free the returned image
+SKRY_Image *get_image_from_pool(SKRY_ImagePool *img_pool,
+                                /// Pointer returned by connect_img_sequence()
+                                struct list_node *img_seq_node,
+                                size_t img_idx)
 {
     struct img_seq_entry *data = img_seq_node->data;
     assert(img_idx < data->num_images);
@@ -204,7 +226,8 @@ SKRY_Image *get_image_from_pool(struct SKRY_image_pool *img_pool, struct list_no
         return 0;
 }
 
-struct SKRY_image_pool *SKRY_free_image_pool(struct SKRY_image_pool *img_pool)
+/// Returns null; also disconnects all image sequences that were using 'img_pool'
+SKRY_ImagePool *SKRY_free_image_pool(SKRY_ImagePool *img_pool)
 {
     if (img_pool)
     {
