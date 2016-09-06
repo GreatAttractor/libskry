@@ -199,11 +199,6 @@ namespace libskry
             return  SKRY_get_image_metadata(fileName, width, height, pixFmt);
         }
 
-//        uint8_t GetBackgroundThreshold() const
-//        {
-//            return get_background_threshold(pimpl.get());
-//        }
-
         friend class c_ImageSequence;
         friend class c_ImageAlignment;
         friend class c_QualityEstimation;
@@ -509,6 +504,32 @@ namespace libskry
 
         SKRY_quality_t GetAvgAreaQuality(int areaIdx) const { return SKRY_get_avg_area_quality(pimpl.get(), areaIdx); }
 
+        std::vector<struct SKRY_point> SuggestRefPointPositions(
+            /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+            /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
+            float placementBrightnessThreshold,
+            /// Spacing in pixels between reference points
+            unsigned spacing)
+        {
+            size_t numPoints;
+            struct SKRY_point *newPoints = SKRY_suggest_ref_point_positions(
+                                             pimpl.get(), &numPoints,
+                                             placementBrightnessThreshold, spacing);
+
+            if (numPoints)
+            {
+                std::vector<struct SKRY_point> result(numPoints);
+                for (size_t i = 0; i < result.size(); i++)
+                {
+                    result[i] = newPoints[i];
+                }
+                free(newPoints);
+                return result;
+            }
+            else return { };
+        }
+
+
         friend class c_RefPointAlignment;
     };
 
@@ -576,32 +597,6 @@ namespace libskry
         enum SKRY_result Step() { return SKRY_ref_pt_alignment_step(pimpl.get()); }
 
         const struct SKRY_triangulation *GetTriangulation() const { return SKRY_get_ref_pts_triangulation(pimpl.get()); }
-
-        static std::vector<struct SKRY_point> SuggestRefPointPositions(
-            const c_Image &img, ///< Has to be SKRY_PIX_MONO8
-            /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-            /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
-            float placementBrightnessThreshold,
-            /// Spacing in pixels between reference points
-            unsigned spacing)
-        {
-            size_t numPoints;
-            struct SKRY_point *newPoints = SKRY_suggest_ref_point_positions(
-                                             &numPoints, img.pimpl.get(),
-                                             placementBrightnessThreshold, spacing);
-
-            if (numPoints)
-            {
-                std::vector<struct SKRY_point> result(numPoints);
-                for (size_t i = 0; i < result.size(); i++)
-                {
-                    result[i] = newPoints[i];
-                }
-                free(newPoints);
-                return result;
-            }
-            else return { };
-        }
 
         friend class c_Stacking;
     };

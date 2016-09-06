@@ -509,33 +509,54 @@ struct SKRY_point SKRY_suggest_anchor_pos(
     struct SKRY_point result = { .x = width/2, .y = height/2 };
     SKRY_quality_t best_qual = 0;
 
+    size_t num_pixels_in_block = SKRY_SQR(ref_block_size);
+
     // Consider only the middle 3/4 of 'image'
-    for (unsigned y = height/8; y < 7*height/8 - ref_block_size; y += ref_block_size/3)
-        for (unsigned x = width/8; x < 7*width/8 - ref_block_size; x += ref_block_size/3)
+    for (unsigned y = height/8 + ref_block_size/2;
+                  y < 7*height/8 - ref_block_size/2;
+                  y += ref_block_size/3)
+    {
+        for (unsigned x = width/8 + ref_block_size/2;
+                      x < 7*width/8 - ref_block_size;
+                      x += ref_block_size/3)
         {
-            // Reject locations at the limb of an overexposed (fully white) disc with little (<20%)
-            // prominence details (i.e. pixels above the "placement threshold").
             size_t num_above_thresh = 0;
+            size_t num_white = 0;
             for (unsigned ny = y - ref_block_size/2; ny < y + ref_block_size/2; ny++)
             {
                 uint8_t *line = SKRY_get_line(img8, ny);
                 for (unsigned nx = x - ref_block_size/2; nx < x + ref_block_size/2; nx++)
+                {
+                    if (line[nx] == WHITE_8bit)
+                        num_white++;
+
                     if (line[nx] != WHITE_8bit && line[nx] >= bmin + placement_brightness_threshold * (bmax-bmin))
                         num_above_thresh++;
+                }
             }
-            if (num_above_thresh > SKRY_SQR(ref_block_size)/5)
+
+            if (num_above_thresh > num_pixels_in_block/5
+
+                // Reject locations at the limb of an overexposed (fully white) disc; the white pixels
+                // would weigh heavily during block matching and the point would tend to jump along the limb
+                && num_white < num_pixels_in_block/10
+
+                && assess_block_matching_viability(img8,
+                        (struct SKRY_point) { .x = x, .y = y},
+                        SKRY_MAX(ref_block_size/2, 32)))
             {
-                SKRY_quality_t qual = estimate_quality((uint8_t *)SKRY_get_line(img8, y) + x, ref_block_size, ref_block_size,
+                SKRY_quality_t qual = estimate_quality((uint8_t *)SKRY_get_line(img8, y - ref_block_size/2) + x-ref_block_size/2, ref_block_size, ref_block_size,
                                                        SKRY_get_line_stride_in_bytes(img8), 4);
 
                 if (qual > best_qual)
                 {
                     best_qual = qual;
-                    result.x = x + ref_block_size/2;
-                    result.y = y + ref_block_size/2;
+                    result.x = x;
+                    result.y = y;
                 }
             }
         }
+    }
 
     if (img8 != image)
         SKRY_free_image(img8);

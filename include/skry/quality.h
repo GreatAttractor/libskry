@@ -85,4 +85,14 @@ size_t SKRY_get_area_idx_at_pos(const SKRY_QualityEstimation *qual_est,
 
 SKRY_quality_t SKRY_get_min_nonzero_avg_area_quality(const SKRY_QualityEstimation *qual_est);
 
+/// Returns an array of suggested reference point positions; return null if out of memory
+struct SKRY_point *SKRY_suggest_ref_point_positions(
+    const SKRY_QualityEstimation *qual_est,
+    size_t *num_points, ///< Receives number of elements in the result
+    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+    /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
+    float placement_brightness_threshold,
+    /// Spacing in pixels between reference points
+    unsigned spacing);
+
 #endif // LIB_STACKISTRY_QUALITY_HEADER

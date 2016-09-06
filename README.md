@@ -89,7 +89,7 @@ To use the C++ wrappers:
 
 (this includes ``skry.h`` internally).
 
-If libskry is built with OpenMP support (this is the default), any program using it must also link with OpenMP-related libraries. E.g. in case of GCC on Linux or MinGW/MSYS, use ``-lskry -lgomp``.
+If libskry is built with OpenMP support (this is the default), any program using it must also link with OpenMP-related libraries. E.g. in case of GCC on Linux or MinGW/MSYS, use ``-lskry -lm -lgomp``.
 
 See the ``doc`` folder for simple examples that illustrate the full stacking process.
 

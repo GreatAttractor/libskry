@@ -23,10 +23,12 @@ File description:
 
 #include <assert.h>
 #include <ctype.h>   // for tolower()
+#include <math.h>
 #include <stddef.h>
 #include <string.h>
 #include <time.h>
 
+#include "filters.h"
 #include "misc.h"
 
 
@@ -150,7 +152,8 @@ double SKRY_clock_sec()
     return clock_func();
 }
 
-void find_min_max_brightness(const SKRY_Image *img, uint8_t *bmin, uint8_t *bmax)
+void find_min_max_brightness(const SKRY_Image *img, ///< Has to be SKRY_PIX_MONO8
+                             uint8_t *bmin, uint8_t *bmax)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
 
@@ -211,4 +214,129 @@ uint16_t cnd_swap_16(uint16_t x, int do_swap)
         return (x << 8) | (x >> 8);
     else
         return x;
+}
+
+/// Returns 1 if the specified position 'pos' in 'img' is appropriate for block matching
+/** Uses the distribution of gradient directions around 'pos' to decide
+    if the location is safe for block matching. It is not if the image
+    is dominated by a single edge (e.g. the limb of overexposed solar disc,
+    without prominences or resolved spicules). Should block matching be perfomed
+    in such circumstances, the tracked point would jump along the edge. */
+int assess_block_matching_viability(
+    const SKRY_Image *img, ///< Must be SKRY_PIX_MONO8
+    struct SKRY_point pos,
+    unsigned neighborhood_radius)
+{
+    unsigned block_size = 2*neighborhood_radius + 1;
+    SKRY_Image *block = SKRY_new_image(block_size, block_size,
+                                       SKRY_PIX_MONO8, 0, 0);
+    if (!block)
+        return 0;
+
+    SKRY_resize_and_translate(img, block,
+                              pos.x - neighborhood_radius,
+                              pos.y - neighborhood_radius,
+                              block_size,
+                              block_size,
+                              0, 0, 0);
+
+    // Blur to reduce noise impact
+    SKRY_Image *block_blurred = box_blur_img(block, 1, 3);
+    SKRY_free_image(block);
+    if (!block_blurred)
+        return 0;
+
+    uint8_t *line_m1 = SKRY_get_line(block_blurred, 0); // line at y-1
+    uint8_t *line_0  = SKRY_get_line(block_blurred, 1); // line at y
+    uint8_t *line_p1 = SKRY_get_line(block_blurred, 2); // line at y+1
+
+    ptrdiff_t line_stride = SKRY_get_line_stride_in_bytes(block_blurred);
+
+    // Determine the histogram of gradient directions within 'block_blurred'
+
+#define NUM_DIRS 512
+
+    double dirs[NUM_DIRS] = { 0.0 }; ///< Contains sums of gradient lengths
+
+    for (unsigned y = 1; y <= block_size-2; y++)
+    {
+        for (unsigned x = 1; x <= block_size-2; x++)
+        {
+            // Calculate gradient using Sobel filter
+            double grad_x = 2*(line_0[x+1] - line_0[x-1])
+                             + line_m1[x+1] - line_m1[x-1]
+                             + line_p1[x+1] - line_p1[x-1];
+
+            double grad_y = 2*(line_p1[x] - line_m1[x])
+                             + line_p1[x+1] - line_m1[x+1]
+                             + line_p1[x-1] - line_m1[x-1];
+
+            double grad_len = sqrt(SKRY_SQR(grad_x) + SKRY_SQR(grad_y));
+            if (grad_len > 0.0)
+            {
+                double cos_dir = grad_x/grad_len;
+                double dir = acos(cos_dir);
+                if (grad_y < 0)
+                    dir = -dir;
+
+                int index = NUM_DIRS/2 + dir * NUM_DIRS/(2*3.1415926);
+
+                if (index < 0)
+                    index = 0;
+                else if (index >= NUM_DIRS)
+                    index = NUM_DIRS-1;
+
+                dirs[index] += grad_len;
+            }
+        }
+
+        line_m1 = line_0;
+        line_0 = line_p1;
+        line_p1 += line_stride;
+    }
+
+    // Smooth out the histogram to remove spikes (caused by Sobel filter's anisotropy)
+    double dirs_smooth[NUM_DIRS];
+    median_filter(dirs, dirs_smooth, NUM_DIRS, 1);
+
+    // We declare that gradient variability is too low if there are
+    // consecutive zeros over more than 1/2 of the histogram and
+    // the longest non-zero sequence is shorter than 1/4 of histogram
+
+    size_t zero_count = 0,
+           nzero_count = 0;
+
+    size_t max_zero_count = 0,
+           max_nzero_count = 0;
+
+    for (size_t i = 0; i < NUM_DIRS; i++)
+    {
+        if (dirs_smooth[i] == 0.0)
+        {
+            zero_count++;
+
+            if (nzero_count > max_nzero_count)
+                max_nzero_count = nzero_count;
+
+            nzero_count = 0;
+        }
+        else
+        {
+            if (zero_count > max_zero_count)
+                max_zero_count = zero_count;
+
+            zero_count = 0;
+            nzero_count++;
+        }
+    }
+
+    int assessment_result = 1;
+    if (max_zero_count > NUM_DIRS/3 && max_nzero_count < NUM_DIRS/4)
+        assessment_result = 0;
+
+#undef NUM_DIRS
+
+    SKRY_free_image(block_blurred);
+
+    return assessment_result;
 }

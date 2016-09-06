@@ -7,7 +7,7 @@
     libskry is built with OpenMP support, so remember to link with
     the necessary libraries. E.g. in case of GCC on Linux, use:
     
-        gcc -std=c99 example1.c -lskry -lgomp -L ../bin -I ../include
+        gcc -std=c99 example1.c -lskry -lgomp -lm -L ../bin -I ../include
 */
 
 // Needed for MinGW, so that is uses its own string formatting functions.

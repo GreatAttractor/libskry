@@ -81,14 +81,4 @@ int SKRY_is_ref_pt_valid(const SKRY_RefPtAlignment *ref_pt_align, size_t pt_idx,
 /// Triangulation contains 3 additional points at the end of vertex list: a triangle that covers all the other points
 const struct SKRY_triangulation *SKRY_get_ref_pts_triangulation(const SKRY_RefPtAlignment *ref_pt_align);
 
-/// Returns an array of suggested reference point positions in 'img'; return null if out of memory
-struct SKRY_point *SKRY_suggest_ref_point_positions(
-    size_t *num_points, ///< Receives number of elements in the result
-    const SKRY_Image *img, ///< Has to be SKRY_PIX_MONO8
-    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
-    float placement_brightness_threshold,
-    /// Spacing in pixels between reference points
-    unsigned spacing);
-
 #endif

@@ -686,7 +686,7 @@ SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
     if (automatic_points)
     {
         points = SKRY_suggest_ref_point_positions(
-                        &num_points, first_img,
+                        qual_est, &num_points,
                         placement_brightness_threshold,
                         spacing);
         FAIL_ON_NULL(points);
@@ -930,64 +930,4 @@ int SKRY_is_ref_pt_valid(const SKRY_RefPtAlignment *ref_pt_align, size_t pt_idx,
 const struct SKRY_triangulation *SKRY_get_ref_pts_triangulation(const SKRY_RefPtAlignment *ref_pt_align)
 {
     return ref_pt_align->triangulation;
-}
-
-/// Returns an array of suggested reference point positions in 'img'; return null if out of memory
-struct SKRY_point *SKRY_suggest_ref_point_positions(
-    size_t *num_points, ///< Receives number of elements in the result
-    const SKRY_Image *img, ///< Has to be SKRY_PIX_MONO8
-    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
-    float placement_brightness_threshold,
-    /// Spacing in pixels between reference points
-    unsigned spacing)
-{
-    assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
-
-    DA_DECLARE(struct SKRY_point) result;
-    DA_ALLOC(result, 0);
-
-    uint8_t brightness_min, brightness_max;
-    find_min_max_brightness(img, &brightness_min, &brightness_max);
-
-    for (unsigned x = spacing/2; x < SKRY_get_img_width(img) - spacing/2; x += spacing)
-        for (unsigned y = spacing/2; y < SKRY_get_img_height(img) - spacing/2; y += spacing)
-        {
-#define NEIGHB_SIZE 5
-            // Check if the neighborhood contains pixels above the background threshold
-            int is_neighb_brightness_sufficient = 0;
-            for (unsigned ny = y - SKRY_MIN(spacing/2, NEIGHB_SIZE); ny < y + SKRY_MIN(spacing/2, NEIGHB_SIZE); ny++)
-            {
-                uint8_t *line = SKRY_get_line(img, ny);
-                for (unsigned nx = x - SKRY_MIN(spacing/2, NEIGHB_SIZE); nx < x + SKRY_MIN(spacing/2, NEIGHB_SIZE); nx++)
-                {
-                    if (line[nx] >= brightness_min + placement_brightness_threshold * (brightness_max - brightness_min))
-                    {
-                        is_neighb_brightness_sufficient = 1;
-                        break;
-                    }
-                }
-            }
-
-            // Check if the neighborhood is not contained within an overexposed solar disc (all white pixels)
-            int is_outside_white_disc = 0;
-            for (unsigned ny = y - SKRY_MIN(spacing/2, NEIGHB_SIZE); ny < y + SKRY_MIN(spacing/2, NEIGHB_SIZE); ny++)
-            {
-                uint8_t *line = SKRY_get_line(img, ny);
-                for (unsigned nx = x - SKRY_MIN(spacing/2, NEIGHB_SIZE); nx < x + SKRY_MIN(spacing/2, NEIGHB_SIZE); nx++)
-                {
-                    if (line[nx] < WHITE_8bit)
-                    {
-                        is_outside_white_disc = 1;
-                        break;
-                    }
-                }
-            }
-
-            if (is_neighb_brightness_sufficient && is_outside_white_disc)
-                DA_APPEND(result, ((struct SKRY_point) { .x = x, .y = y }));
-        }
-
-    *num_points = DA_SIZE(result);
-    return result.data; // the caller will eventually call free() on it
 }

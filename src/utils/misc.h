@@ -45,7 +45,8 @@ void SKRY_set_clock_func(SKRY_clock_sec_fn new_clock_func);
 
 double SKRY_clock_sec(void);
 
-void find_min_max_brightness(const SKRY_Image *img, uint8_t *bmin, uint8_t *bmax);
+void find_min_max_brightness(const SKRY_Image *img, ///< Has to be SKRY_PIX_MONO8
+                             uint8_t *bmin, uint8_t *bmax);
 
 int is_machine_big_endian(void);
 
@@ -60,5 +61,16 @@ uint16_t cnd_swap_16(uint16_t x, int do_swap);
 
 /// Changes endianess of 16-bit words
 void swap_words16(SKRY_Image *img);
+
+/// Returns 1 if the specified position 'pos' in 'img' is appropriate for block matching
+/** Uses the distribution of gradient directions around 'pos' to decide
+    if the location is safe for block matching. It is not, if the image
+    is dominated by a single edge (e.g. the limb of overexposed solar disc,
+    without prominences or resolved spicules). Should block matching be perfomed
+    in such circumstances, the tracked point would jump along the edge. */
+int assess_block_matching_viability(
+    const SKRY_Image *img, ///< Must be SKRY_PIX_MONO8
+    struct SKRY_point pos,
+    unsigned neighborhood_radius);
 
 #endif // LIBSKRY_MISC_UTILS_HEADER

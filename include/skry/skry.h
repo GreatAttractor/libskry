@@ -55,6 +55,8 @@ File description:
 
        expects that 0 <= img_idx < 300. The indexing ignores all non-active images
        (even if active ones are not sequential).
+
+    6. Libskry's user may need to link with -lm (e.g. when using GCC).
 */
 
 #ifdef __cplusplus

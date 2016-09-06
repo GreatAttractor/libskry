@@ -193,18 +193,29 @@ enum SKRY_result box_blur(uint8_t *src, uint8_t *blurred, unsigned width, unsign
     return SKRY_SUCCESS;
 }
 
-/// Returns blurred image (SKRY_PIX_MONO8)
+/// Returns blurred image (SKRY_PIX_MONO8) or null if out of memory
 /** Requirements: img is SKRY_PIX_MONO8, box_radius < 2^11 */
 struct SKRY_image *box_blur_img(struct SKRY_image *img, unsigned box_radius, size_t iterations)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
 
     SKRY_Image *blurred = SKRY_new_image(SKRY_get_img_width(img), SKRY_get_img_height(img), SKRY_PIX_MONO8, 0, 0);
-
-    box_blur(SKRY_get_line(img, 0), SKRY_get_line(blurred, 0), SKRY_get_img_width(img), SKRY_get_img_height(img),
-             SKRY_get_line_stride_in_bytes(img), SKRY_get_line_stride_in_bytes(blurred), box_radius, iterations);
-
-    return blurred;
+    if (blurred)
+    {
+        enum SKRY_result result = box_blur(SKRY_get_line(img, 0), SKRY_get_line(blurred, 0),
+                                     SKRY_get_img_width(img), SKRY_get_img_height(img),
+                                     SKRY_get_line_stride_in_bytes(img), SKRY_get_line_stride_in_bytes(blurred),
+                                     box_radius, iterations);
+        if (SKRY_SUCCESS == result)
+            return blurred;
+        else
+        {
+            SKRY_free_image(blurred);
+            return 0;
+        }
+    }
+    else
+        return 0;
 }
 
 /// Estimates quality of the specified area (8 bits per pixel)
@@ -234,4 +245,94 @@ SKRY_quality_t estimate_quality(uint8_t *pixels, unsigned width, unsigned height
     free(blurred);
 
     return quality / (width*height);
+}
+
+static
+void insertion_sort(double array[], size_t array_len)
+{
+    for (int i = 1; i < (int)array_len; i++)
+    {
+        double x = array[i];
+        int j = i - 1;
+        while (j >= 0 && array[j] > x)
+        {
+            array[j+1] = array[j];
+            j -= 1;
+        }
+        array[j+1] = x;
+    }
+}
+
+/** Finds 'remove_val' in the sorted 'array', replaces it with 'new_val'
+    and ensures 'array' remains sorted. */
+static
+void shift_sorted_window(double array[], size_t length, double remove_val, double new_val)
+{
+    // Use binary search to locate 'remove_val' in 'array'
+    size_t idx_lo = 0, idx_hi = length, idx_mid;
+    do
+    {
+        idx_mid = (idx_hi + idx_lo)/2;
+        if (array[idx_mid] < remove_val)
+            idx_lo = idx_mid;
+        else if (array[idx_mid] > remove_val)
+            idx_hi = idx_mid;
+        else
+            break;
+
+    } while (idx_hi > idx_lo);
+
+    // Insert 'new_val' into 'array' and (if needed) move it to keep the array sorted
+    size_t curr_idx = idx_mid;
+    array[curr_idx] = new_val;
+    while (curr_idx <= length-2 && array[curr_idx] > array[curr_idx + 1])
+    {
+        double tmp = array[curr_idx + 1];
+        array[curr_idx + 1] = array[curr_idx];
+        array[curr_idx] = tmp;
+        curr_idx += 1;
+    }
+    while (curr_idx > 0 && array[curr_idx] < array[curr_idx - 1])
+    {
+        double tmp = array[curr_idx - 1];
+        array[curr_idx - 1] = array[curr_idx];
+        array[curr_idx] = tmp;
+        curr_idx -= 1;
+    }
+}
+
+/// Perform median filtering on 'array'
+void median_filter(double array[],
+                   double output[], ///< Receives filtered contents of 'array'
+                   size_t array_len,
+                   size_t window_radius)
+{
+    assert(window_radius > 0 && window_radius < array_len);
+
+    size_t wnd_len = 2*window_radius + 1;
+    // A sorted array
+    double *window = malloc(wnd_len * sizeof(*window));
+
+    // Set initial window contents
+    for (size_t i = 0; i <= window_radius; i++)
+    {
+        // upper half
+        window[window_radius + i] = array[i];
+
+        // lower half (consists of repeated array[0] value)
+        if (i < window_radius)
+            window[i] = array[0];
+    }
+    insertion_sort(window, wnd_len);
+
+    // Replace every 'array' element in 'output' with window's median and shift the window
+    for (size_t i = 0; i < array_len; i++)
+    {
+        output[i] = window[window_radius];
+        shift_sorted_window(window, wnd_len,
+                            array[SKRY_MAX((int)i - (int)window_radius, 0)],
+                            array[SKRY_MIN(i+1 + window_radius, array_len-1)]);
+    }
+
+    free(window);
 }

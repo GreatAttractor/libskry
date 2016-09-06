@@ -28,7 +28,7 @@ File description:
 #include <skry/image.h>
 
 
-/// Returns blurred image (SKRY_PIX_MONO8)
+/// Returns blurred image (SKRY_PIX_MONO8) or null if out of memory
 /** Requirements: img is SKRY_PIX_MONO8, box_radius < 2^11 */
 struct SKRY_image *box_blur_img(struct SKRY_image *img, unsigned box_radius, size_t iterations);
 
@@ -38,5 +38,11 @@ struct SKRY_image *box_blur_img(struct SKRY_image *img, unsigned box_radius, siz
     of the high-frequency component. The sum is normalized
     by dividing by the number of pixels. */
 SKRY_quality_t estimate_quality(uint8_t *pixels, unsigned width, unsigned height, ptrdiff_t line_stride, unsigned box_blur_radius);
+
+/// Perform median filtering on 'array'
+void median_filter(double array[],
+                   double output[], ///< Receives filtered contents of 'array'
+                   size_t array_len,
+                   size_t window_radius);
 
 #endif // LIBSKRY_FILTERS_HEADER
