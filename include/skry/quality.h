@@ -69,30 +69,43 @@ const SKRY_ImgAlignment *SKRY_get_img_align(const SKRY_QualityEstimation *qual_e
 
 struct SKRY_point SKRY_get_qual_est_area_center(const SKRY_QualityEstimation *qual_est, size_t area_idx);
 
-/// Returns a square image to be used as reference block; returns null if out of memory
-//TODO: move it out of public interface
-SKRY_Image *SKRY_create_reference_block(
-    const SKRY_QualityEstimation *qual_est,
-    /// Center of the reference block (within images' intersection)
-    struct SKRY_point pos,
-    /// Desired width & height; the result may be smaller than this (but always a square)
-    unsigned blk_size);
-
-
 size_t SKRY_get_area_idx_at_pos(const SKRY_QualityEstimation *qual_est,
                                 /// Position within images' intersection
                                 struct SKRY_point pos);
 
 SKRY_quality_t SKRY_get_min_nonzero_avg_area_quality(const SKRY_QualityEstimation *qual_est);
 
+size_t SKRY_get_best_img_idx(const SKRY_QualityEstimation *qual_est);
+
+/// Returns a composite image consisting of best fragments of all frames
+/** Returns null if out of memory. */
+SKRY_Image *SKRY_get_best_fragments_img(const SKRY_QualityEstimation *qual_est);
+
 /// Returns an array of suggested reference point positions; return null if out of memory
 struct SKRY_point *SKRY_suggest_ref_point_positions(
     const SKRY_QualityEstimation *qual_est,
     size_t *num_points, ///< Receives number of elements in the result
+
     /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
     /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
-    float placement_brightness_threshold,
+    float brightness_threshold,
+
+    /// Structure detection threshold; value of 1.2 is recommended
+    /** The greater the value, the more local contrast is required to place
+        a ref. point. */
+    float structure_threshold,
+
+    /** Corresponds with pixel size of smallest structures. Should equal 1
+        for optimally-sampled or undersampled images. Use higher values
+        for oversampled (blurry) material. */
+    unsigned structure_scale,
+
     /// Spacing in pixels between reference points
-    unsigned spacing);
+    unsigned spacing,
+
+    /// Size of reference blocks used for block matching
+    unsigned ref_block_size
+);
+
 
 #endif // LIB_STACKISTRY_QUALITY_HEADER

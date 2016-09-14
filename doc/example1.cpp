@@ -2,11 +2,11 @@
     An unrealistically simple example without any error checking
     (you really should not use code like this!), just to demonstrate
     what objects and in what order must be created.
-    
+
     Do not forget to enable your compiler's C++11 mode. By default,
     libskry is built with OpenMP support, so remember to link with
     the necessary libraries. E.g. in case of GCC on Linux, use:
-    
+
         g++ -std=c++11 example1.cpp -lskry -lgomp -I ../include -L ../bin
 */
 
@@ -63,11 +63,23 @@ int main(int argc, char *argv[])
             qualEst,
             { }, // pass an empty vector; reference points
                  // will be placed automatically
-            0.33f, // min. relative brightness to place points at;
-                   // avoid the dark background
+
             // Consider only 30% of the best-quality frame fragments
             // (this criterion later also applies to stacking)
             SKRY_PERCENTAGE_BEST, 30,
+
+            32, // reference block size
+            20, // ref. block search radius
+
+            nullptr,
+
+            0.33f, // min. relative brightness to place points at;
+                   // avoid the dark background
+
+            1.2f, // structure detection threshold; value 1.2 is recommended
+
+            1, // structure scale in pixels
+
             40); // point spacing in pixels
 
     step = 1;

@@ -2,11 +2,11 @@
     An unrealistically simple example without any error checking
     (you really should not use code like this!), just to demonstrate
     what objects and in what order must be created.
-    
+
     Do not forget to enable your compiler's C99 mode. By default,
     libskry is built with OpenMP support, so remember to link with
     the necessary libraries. E.g. in case of GCC on Linux, use:
-    
+
         gcc -std=c99 example1.c -lskry -lgomp -lm -L ../bin -I ../include
 */
 
@@ -70,13 +70,24 @@ int main(int argc, char *argv[])
         SKRY_init_ref_pt_alignment(
             qual_est,
             0, 0, // reference points will be placed automatically
-            0.33f, // min. relative brightness to place points at;
-                   // avoid the dark background
+
             // Consider only 30% of the best-quality frame fragments
             // (this criterion later also applies to stacking)
             SKRY_PERCENTAGE_BEST, 30,
-            40, // point spacing in pixels
-            0);
+
+            32, // reference block size
+            20, // ref. block search radius
+
+            0,
+
+            0.33f, // min. relative brightness to place points at;
+                   // avoid the dark background
+
+            1.2f, // structure threshold; 1.2 is recommended
+
+            1, // structure scale (in pixels)
+
+            40); // point spacing in pixels
 
     step = 1;
     printf("\nReference point alignment: step ");

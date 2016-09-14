@@ -36,6 +36,7 @@ File description:
 #include <skry/skry.h>
 #include <skry/triangulation.h>
 
+#include "quality_internal.h"
 #include "utils/dnarray.h"
 #include "utils/logging.h"
 #include "utils/match.h"
@@ -44,7 +45,6 @@ File description:
 
 // Values in pixels
 #define BLOCK_MATCHING_INITIAL_SEARCH_STEP 2
-#define DEFAULT_SPACING 40
 
 enum { NOT_UPDATED = 0, UPDATED = 1};
 
@@ -91,12 +91,12 @@ struct SKRY_ref_pt_alignment
     /// Delaunay triangulation of the reference points
     struct SKRY_triangulation *triangulation;
 
-    /// Spacing in pixels between reference points
-    unsigned spacing;
-
     /// Size of (square) reference blocks used for block matching
     /** Some ref. points (near image borders) may have smaller blocks (but always square). */
     unsigned ref_block_size;
+
+    /// Search radius used during block matching
+    unsigned search_radius;
 
     /// Array of boolean flags indicating if a ref. point has been updated during the current step
     uint8_t *update_flags;
@@ -374,7 +374,7 @@ void update_ref_pt_positions(
                     (struct SKRY_point) { .x = current_ref_pos.x + intersection.x + img_alignment_ofs.x,
                                           .y = current_ref_pos.y + intersection.y + img_alignment_ofs.y },
                     ref_pt->ref_block, img,
-                    ref_pt_align->spacing/2,
+                    ref_pt_align->search_radius,
                     BLOCK_MATCHING_INITIAL_SEARCH_STEP, &new_pos_in_img);
 
                 struct SKRY_point new_pos = { .x = new_pos_in_img.x - intersection.x - img_alignment_ofs.x,
@@ -385,7 +385,7 @@ void update_ref_pt_positions(
                 // phase and might not recover, i.e. its subsequent position updates might be getting rejected
                 // by the additional check after the current outermost 'for' loop.
                 if (!is_first_update
-                    || SKRY_SQR(new_pos.x - current_ref_pos.x) + SKRY_SQR(new_pos.y - current_ref_pos.y) <= SKRY_SQR((int)ref_pt_align->spacing/6 /*TODO: make it adaptive somehow? or use the current avg. deviation*/))
+                    || SKRY_SQR(new_pos.x - current_ref_pos.x) + SKRY_SQR(new_pos.y - current_ref_pos.y) <= SKRY_SQR((int)ref_pt_align->ref_block_size/3 /*TODO: make it adaptive somehow? or use the current avg. deviation*/))
                 {
                     ref_pt->positions[img_idx].pos =
                         (struct SKRY_point) { .x = new_pos_in_img.x - intersection.x - img_alignment_ofs.x,
@@ -618,18 +618,40 @@ SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
     /** Positions are specified within the images' intersection.
         The points must not lie outside it. */
     const struct SKRY_point *points,
-    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels.
-        Used only during automatic placement. */
-    float placement_brightness_threshold,
+
     /// Criterion for updating ref. point position (and later for stacking)
     enum SKRY_quality_criterion quality_criterion,
     /// Interpreted according to 'quality_criterion'
     unsigned quality_threshold,
-    /// Spacing in pixels between reference points (used only during automatic placement)
-    unsigned spacing,
+
+    /// Size (in pixels) of reference blocks used for block matching
+    unsigned ref_block_size,
+
+    /// Search radius (in pixels) used during block matching
+    unsigned search_radius,
+
     /// If not null, receives operation result
-    enum SKRY_result *result)
+    enum SKRY_result *result,
+
+    // Parameters used if num_points==0 (automatic placement of ref. points) -----------------
+
+    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels.
+        Used only during automatic placement. */
+    float placement_brightness_threshold,
+
+    /// Structure detection threshold; value of 1.2 is recommended
+    /** The greater the value, the more local contrast is required to place
+        a ref. point. */
+    float structure_threshold,
+
+    /** Corresponds with pixel size of smallest structures. Should equal 1
+        for optimally-sampled or undersampled images. Use higher values
+        for oversampled (blurry) material. */
+    unsigned structure_scale,
+
+    /// Spacing in pixels between reference points
+    unsigned spacing)
 {
     SKRY_Image *first_img = 0; // Will be freed by FAIL_ON_NULL() in case of error
     SKRY_ImgSequence *img_seq = SKRY_get_img_seq(SKRY_get_img_align(qual_est));
@@ -645,14 +667,11 @@ SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
     *ref_pt_align = (SKRY_RefPtAlignment) { 0 };
 
     ref_pt_align->statistics.time.start = SKRY_clock_sec();
+    ref_pt_align->search_radius = search_radius;
 
     int automatic_points = (0 == num_points || 0 == points);
-    if (automatic_points)
-        ref_pt_align->spacing = spacing;
-    else
-        ref_pt_align->spacing = DEFAULT_SPACING;
 
-    ref_pt_align->ref_block_size = 2*spacing/3; //TODO: make it adjustable?
+    ref_pt_align->ref_block_size = ref_block_size;
     ref_pt_align->qual_est = qual_est;
     ref_pt_align->quality_criterion = quality_criterion;
     ref_pt_align->quality_threshold = quality_threshold;
@@ -688,7 +707,10 @@ SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
         points = SKRY_suggest_ref_point_positions(
                         qual_est, &num_points,
                         placement_brightness_threshold,
-                        spacing);
+                        structure_threshold,
+                        structure_scale,
+                        spacing,
+                        ref_block_size);
         FAIL_ON_NULL(points);
     }
 

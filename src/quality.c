@@ -35,6 +35,7 @@ File description:
 #include "utils/dnarray.h"
 #include "utils/filters.h"
 #include "utils/logging.h"
+#include "utils/match.h"
 #include "utils/misc.h"
 
 
@@ -114,6 +115,11 @@ struct SKRY_quality_estimation
             double start; ///< Stored at the beginning of SKRY_init_quality_est()
             double total_sec; ///< Difference between end of the last step and 'start'
         } time;
+
+        struct
+        {
+            uint8_t min, max;
+        } ref_block_brightness; ///< Brightness of quality estimation areas' reference blocks
     } statistics;
 };
 
@@ -344,6 +350,13 @@ enum SKRY_result on_final_step(SKRY_QualityEstimation *qual_est)
 {
     unsigned num_active_imgs = SKRY_get_active_img_count(SKRY_get_img_seq(qual_est->img_algn));
 
+    enum SKRY_result res = create_reference_blocks(qual_est);
+    if (res != SKRY_SUCCESS)
+        return res;
+
+    qual_est->statistics.ref_block_brightness.min = 0xFF;
+    qual_est->statistics.ref_block_brightness.max = 0;
+
     qual_est->overall_quality.area.max_avg = 0;
     qual_est->overall_quality.area.min_nonzero_avg = FLT_MAX;
 
@@ -369,10 +382,16 @@ enum SKRY_result on_final_step(SKRY_QualityEstimation *qual_est)
 
         if (qavg > 0 && qavg < qual_est->overall_quality.area.min_nonzero_avg)
             qual_est->overall_quality.area.min_nonzero_avg = qavg;
+
+        uint8_t bmin, bmax;
+        find_min_max_brightness(qual_est->area_defs[i].ref_block, &bmin, &bmax);
+        if (bmin < qual_est->statistics.ref_block_brightness.min)
+            qual_est->statistics.ref_block_brightness.min = bmin;
+        if (bmax < qual_est->statistics.ref_block_brightness.max)
+            qual_est->statistics.ref_block_brightness.max = bmax;
     }
 
     qual_est->overall_quality.area.avg = overall_sum / (qual_est->num_areas * num_active_imgs);
-    create_reference_blocks(qual_est);
     qual_est->is_estimation_complete = 1;
 
     qual_est->statistics.time.total_sec = SKRY_clock_sec() - qual_est->statistics.time.start;
@@ -583,95 +602,352 @@ SKRY_quality_t SKRY_get_overall_avg_area_quality(const SKRY_QualityEstimation *q
     return qual_est->overall_quality.area.avg;
 }
 
+size_t SKRY_get_best_img_idx(const SKRY_QualityEstimation *qual_est)
+{
+    return qual_est->overall_quality.image.best_img_idx;
+}
+
+/// Returns a composite image consisting of best fragments of all frames
+/** Returns null if out of memory. */
+SKRY_Image *SKRY_get_best_fragments_img(const SKRY_QualityEstimation *qual_est)
+{
+    assert(qual_est->is_estimation_complete);
+
+    struct SKRY_rect intersection = SKRY_get_intersection(SKRY_get_img_align(qual_est));
+
+    SKRY_Image *result = SKRY_new_image(intersection.width, intersection.height, SKRY_PIX_MONO8, 0, 0);
+    if (!result)
+        return 0;
+
+    for (size_t i = 0; i < qual_est->num_areas; i++)
+    {
+        struct qual_est_area *qarea = &qual_est->area_defs[i];
+
+        SKRY_convert_pix_fmt_of_subimage_into(
+            qarea->ref_block, result,
+            qarea->rect.x - qarea->ref_block_pos.x,
+            qarea->rect.y - qarea->ref_block_pos.y,
+            qarea->rect.x, qarea->rect.y,
+            qarea->rect.width, qarea->rect.height,
+            SKRY_DEMOSAIC_HQLINEAR);
+    }
+
+    return result;
+}
+
+/** Returns the intersection of 'rect1' and 'rect2'. Result's position
+    is relative to 'rect2's origin. E.g., if 'rect2' lies entirely
+    within 'rect1', the result is {0, 0, rect2.width, rect2.height}.
+    If the intersection is empty, result's width and height will be zero. */
+static
+struct SKRY_rect find_rect_intersection(const struct SKRY_rect rect1,
+                                        const struct SKRY_rect rect2)
+{
+    struct SKRY_rect result;
+
+    result.x = SKRY_MAX(0, rect1.x - rect2.x);
+    result.y = SKRY_MAX(0, rect1.y - rect2.y);
+
+    int xmax = SKRY_MIN(rect2.x + rect2.width, rect1.x + rect1.width);
+    int ymax = SKRY_MIN(rect2.y + rect2.height, rect1.y + rect1.height);
+
+    result.width = xmax - rect2.x - result.x;
+    result.height = ymax - rect2.y - result.y;
+
+    return result;
+}
+
+static
+uint_least64_t get_sum_diffs_in_shell(
+    const SKRY_Image *img,
+    const SKRY_Image *ref_block,
+
+    /// Radius of a square shell around 'cmp_pos'; must be > 0
+    int radius,
+
+    /// Center of the shell (relative to 'img')
+    const struct SKRY_point cmp_pos)
+{
+    assert(radius > 0);
+
+    struct SKRY_point shell_pos; // comparison position on the shell (relative to 'img')
+    struct SKRY_rect cmp_rect;   // 'ref_block' extents relative to 'img'
+
+    uint_least64_t sum_diffs = 0;
+
+    unsigned blk_w = SKRY_get_img_width(ref_block),
+             blk_h = SKRY_get_img_height(ref_block);
+
+#define CALC_SUMS() \
+    cmp_rect = (struct SKRY_rect) { .x = shell_pos.x - blk_w/2,         \
+                                    .y = shell_pos.y - blk_h/2,         \
+                                    .width = blk_w,                     \
+                                    .height = blk_h };                  \
+                                                                        \
+    sum_diffs += calc_sum_of_squared_diffs(img, ref_block,              \
+                                           &shell_pos,                  \
+                                           find_rect_intersection(SKRY_get_img_rect(img), cmp_rect));
+
+
+    for (int i = -radius; i <= radius; i++)
+    {
+        // top border
+        shell_pos.x = cmp_pos.x + i;
+        shell_pos.y = cmp_pos.y - radius;
+
+        CALC_SUMS();
+
+        // bottom border
+        shell_pos.x = cmp_pos.x + i;
+        shell_pos.y = cmp_pos.y + radius;
+
+        CALC_SUMS();
+    }
+
+    for (int i = -radius+1; i <= radius-1; i++)
+    {
+        // left border
+
+        shell_pos.x = cmp_pos.x - radius;
+        shell_pos.y = cmp_pos.y - i;
+
+        CALC_SUMS();
+
+        // right border
+        shell_pos.x = cmp_pos.x + radius;
+        shell_pos.y = cmp_pos.y + i;
+
+        CALC_SUMS();
+    }
+
+#undef CALC_SUMS
+
+    return sum_diffs;
+}
+
+/** Checks if the neighborhood of 'pos' contains pixels above the background threshold;
+    also checks if 'pos' is not contained within an overexposed solar disc (all white pixels). */
+static
+int background_threshold_met(const SKRY_QualityEstimation *qual_est,
+                             /// Quality est. area containing 'pos'
+                             const struct qual_est_area *q_area,
+                             /// Position within images' intersection
+                             const struct SKRY_point pos,
+                             unsigned neighborhood_size,
+                             /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+                             /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
+                             float brightness_threshold)
+{
+    int is_neighb_brightness_sufficient = 0;
+    size_t non_white_px_count = 0;
+
+    for (int ny =  SKRY_MAX(pos.y - (int)neighborhood_size, q_area->ref_block_pos.y);
+             ny <= SKRY_MIN(pos.y + (int)neighborhood_size, q_area->ref_block_pos.y + (int)SKRY_get_img_height(q_area->ref_block) - 1);
+             ny++)
+    {
+        uint8_t *line = SKRY_get_line(q_area->ref_block, ny - q_area->ref_block_pos.y);
+
+        for (int nx =  SKRY_MAX(pos.x - (int)neighborhood_size, q_area->ref_block_pos.x);
+                 nx <= SKRY_MIN(pos.x + (int)neighborhood_size, q_area->ref_block_pos.x + (int)SKRY_get_img_width(q_area->ref_block) - 1);
+                 nx++)
+        {
+            uint8_t val = line[nx - q_area->ref_block_pos.x];
+            if (val >= qual_est->statistics.ref_block_brightness.min + brightness_threshold
+                       * (qual_est->statistics.ref_block_brightness.max - qual_est->statistics.ref_block_brightness.min))
+            {
+                is_neighb_brightness_sufficient = 1;
+            }
+
+            if (val < WHITE_8bit)
+                non_white_px_count++;
+        }
+    }
+
+    // Require at least 1/3rd of neighborhood's pixels to be non-white
+    int is_outside_white_disc = non_white_px_count > SKRY_SQR(2*neighborhood_size + 1) / 3;
+
+    return is_neighb_brightness_sufficient && is_outside_white_disc;
+}
+
+
+/// Returns location's quality; the higher, the better
+/** TODO: explain */
+static
+double assess_ref_pt_location(const SKRY_QualityEstimation *qual_est,
+
+                           /// Position within images' intersection
+                           const struct SKRY_point pos,
+                           unsigned block_size,
+                           unsigned structure_scale,
+                           /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+                           /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
+                           float brightness_threshold
+)
+{
+    assert(qual_est->is_estimation_complete);
+
+    const struct qual_est_area *qarea = &qual_est->area_defs[SKRY_get_area_idx_at_pos(qual_est, pos)];
+
+    if (!background_threshold_met(qual_est, qarea, pos, 5 /*TODO: make it configurable?*/, brightness_threshold))
+        return 0.0;
+
+    // See the function's header comment for details on this check
+    if (!assess_gradients_for_block_matching(
+             qarea->ref_block,
+             (struct SKRY_point) { .x = pos.x - qarea->ref_block_pos.x,
+                                   .y = pos.y - qarea->ref_block_pos.y },
+             32 // This cannot be too small (histogram would be too sparse),
+                // perhaps should depend on 'spacing'
+        ))
+    {
+        return 0.0;
+    }
+
+    SKRY_Image *ref_block = SKRY_new_image(block_size, block_size,
+                                           SKRY_PIX_MONO8, 0, 0);
+    SKRY_resize_and_translate(qarea->ref_block, ref_block,
+                              pos.x - block_size/2 - qarea->ref_block_pos.x,
+                              pos.y - block_size/2 - qarea->ref_block_pos.y,
+                              block_size, block_size, 0, 0, 0);
+
+    // A good ref. point location should have a significant difference between sums of pixel differences
+    // obtained in square "shells" centered at 'pos', having radii of 1x and 2x 'structure_scale'.
+
+    uint_least64_t sum_diffs_1 = get_sum_diffs_in_shell(qarea->ref_block, ref_block, structure_scale,
+                                                        (struct SKRY_point) { .x = pos.x - qarea->ref_block_pos.x,
+                                                                              .y = pos.y - qarea->ref_block_pos.y });
+    sum_diffs_1 /= structure_scale;
+
+    uint_least64_t sum_diffs_2 = get_sum_diffs_in_shell(qarea->ref_block, ref_block, 2*structure_scale,
+                                                        (struct SKRY_point) { .x = pos.x - qarea->ref_block_pos.x,
+                                                                              .y = pos.y - qarea->ref_block_pos.y });
+    sum_diffs_2 /= 2*structure_scale;
+
+    SKRY_free_image(ref_block);
+
+    double result = sum_diffs_1 > 0.0 ? (double)sum_diffs_2/sum_diffs_1 : 0.0;
+    LOG_MSG(SKRY_LOG_QUALITY, "Average sum of differences ratio = %.2f", result);
+    return result;
+}
+
+
 /// Returns an array of suggested reference point positions; return null if out of memory
 struct SKRY_point *SKRY_suggest_ref_point_positions(
     const SKRY_QualityEstimation *qual_est,
     size_t *num_points, ///< Receives number of elements in the result
+
     /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
     /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
-    float placement_brightness_threshold,
+    float brightness_threshold,
+
+    /// Structure detection threshold; value of 1.2 is recommended
+    /** The greater the value, the more local contrast is required to place
+        a ref. point. */
+    float structure_threshold,
+
+    /** Corresponds with pixel size of smallest structures. Should equal 1
+        for optimally-sampled or undersampled images. Use higher values
+        for oversampled (blurry) material. */
+    unsigned structure_scale,
+
     /// Spacing in pixels between reference points
-    unsigned spacing)
+    unsigned spacing,
+
+    /// Size of reference blocks used for block matching
+    unsigned ref_block_size
+)
 {
     assert(qual_est->is_estimation_complete);
 
-    DA_DECLARE(struct SKRY_point) result;
+    const unsigned grid_step = spacing;
+
+    const struct SKRY_rect intersection = SKRY_get_intersection(qual_est->img_algn);
+
+    const int num_grid_cols = intersection.width / grid_step;
+    const int num_grid_rows = intersection.height / grid_step;
+
+    DA_DECLARE(struct SKRY_point) result; // The caller will eventually call free() on 'result.data'
     DA_ALLOC(result, 0);
 
-    /*
-        The function bases its decisions on the image sequence's best quality fragments
-        stored in each quality estimation area's definition (qual_est_area::ref_block).
-    */
-
-    // First, find the overall min and max brightness.
-
-    uint8_t brightness_min = 0xFF, brightness_max = 0;
-    for (size_t i = 0; i < qual_est->num_areas; i++)
+    struct
     {
-        uint8_t bmin, bmax;
-        find_min_max_brightness(qual_est->area_defs[i].ref_block, &bmin, &bmax);
-        if (bmin < brightness_min) brightness_min = bmin;
-        if (bmax > brightness_max) brightness_max = bmax;
-    }
+        int contains_ref_pt;
+        struct SKRY_point ref_pt_pos;
+    } *grid = malloc(num_grid_cols * num_grid_rows * sizeof(*grid));
+    memset(grid, 0, num_grid_cols * num_grid_rows * sizeof(*grid));
 
-    struct SKRY_rect intersection = SKRY_get_intersection(SKRY_get_img_align(qual_est));
+#define CONTAINS_REF_PT(row, col) \
+    ((row) < 0 || (row) >= num_grid_rows || (col) < 0 || (col) >= num_grid_cols) ? 0 : grid[(col) + (row)*num_grid_cols].contains_ref_pt
 
-    // Check every location on a 'spacing' grid for viability
+#define CELL_IDX(row, col) ((col) + (row)*num_grid_cols)
 
-    for (unsigned x = spacing/2; x < intersection.width - spacing/2; x += spacing)
-        for (unsigned y = spacing/2; y < intersection.height - spacing/2; y += spacing)
+    for (int grid_row = 0; grid_row < num_grid_rows; grid_row++)
+        for (int grid_col = 0; grid_col < num_grid_cols; grid_col++)
         {
-            const struct qual_est_area *q_area =
-                &qual_est->area_defs[
-                    SKRY_get_area_idx_at_pos(qual_est, (struct SKRY_point) { .x = x, .y = y })
-                ];
+            size_t num_neighb_points = 0;
+            const struct SKRY_point *neighbor_cell_points[8];
 
-#define NEIGHB_SIZE 5
-            // Check if the neighborhood contains pixels above the background threshold;
-            // also check if it is not contained within an overexposed solar disc (all white pixels)
-            int is_neighb_brightness_sufficient = 0;
-            size_t non_white_px_count = 0;
+            // Check the 8 neighboring cells for already existing ref. points
+            for (int d_row = -1; d_row <= 1; d_row++)
+                for (int d_col = -1; d_col <= 1; d_col++)
+                    if (d_row != 0 || d_col != 0)
+                        if (CONTAINS_REF_PT(grid_row + d_row, grid_col + d_col))
+                            neighbor_cell_points[num_neighb_points++] = &grid[CELL_IDX(grid_row + d_row, grid_col + d_col)].ref_pt_pos;
 
-            for (int ny =  SKRY_MAX((int)y - NEIGHB_SIZE, q_area->ref_block_pos.y);
-                     ny <= SKRY_MIN((int)y + NEIGHB_SIZE, q_area->ref_block_pos.y + (int)SKRY_get_img_height(q_area->ref_block) - 1);
-                     ny++)
-            {
-                uint8_t *line = SKRY_get_line(q_area->ref_block, ny - q_area->ref_block_pos.y);
 
-                for (int nx =  SKRY_MAX((int)x - NEIGHB_SIZE, q_area->ref_block_pos.x);
-                         nx <= SKRY_MIN((int)x + NEIGHB_SIZE, q_area->ref_block_pos.x + (int)SKRY_get_img_width(q_area->ref_block) - 1);
-                         nx++)
+            const int search_step = ref_block_size/2;
+            double best_fitness = 0;
+            struct SKRY_point best_pos;
+
+            // Do not try to place ref. points too close to images' intersection border
+            int ystart = (grid_row > 0) ? 0 : ref_block_size/2;
+            int yend = (grid_row <= num_grid_rows-2) ? grid_step : grid_step - ref_block_size/2;
+
+            int xstart = (grid_col > 0) ? 0 : ref_block_size/2;
+            int xend = (grid_col <= num_grid_cols-2) ? grid_step : grid_step - ref_block_size/2;
+
+            for (int y = ystart; y < yend; y += search_step)
+                for (int x = xstart; x < xend; x += search_step)
                 {
-                    uint8_t val = line[nx - q_area->ref_block_pos.x];
-                    if (val >= brightness_min + placement_brightness_threshold * (brightness_max - brightness_min))
-                        is_neighb_brightness_sufficient = 1;
+                    const struct SKRY_point curr_pos = { grid_col * grid_step + x, grid_row * grid_step + y };
 
-                    if (val < WHITE_8bit)
-                        non_white_px_count++;
+                    // Do not assess a location if there are already reference points
+                    // in neighboring grid cells closer than 'spacing'
+                    int too_close_to_neighbor = 0;
+                    for (size_t i = 0; i < num_neighb_points; i++)
+                    {
+                        if (SKRY_SQR(curr_pos.x - neighbor_cell_points[i]->x) +
+                            SKRY_SQR(curr_pos.y - neighbor_cell_points[i]->y) < (int)SKRY_SQR(spacing))
+                        {
+                            too_close_to_neighbor = 1;
+                            break;
+                        }
+                    }
+
+                    if (!too_close_to_neighbor)
+                    {
+                        double fitness = assess_ref_pt_location(qual_est, curr_pos, ref_block_size, structure_scale, brightness_threshold);
+                        if (fitness > best_fitness)
+                        {
+                            best_fitness = fitness;
+                            best_pos = curr_pos;
+                        }
+                    }
                 }
-            }
 
-            // Require at least 1/3rd of neighborhood's pixels to be non-white
-            int is_outside_white_disc = non_white_px_count > SKRY_SQR(2*NEIGHB_SIZE + 1) / 3;
-#undef NEIGHB_SIZE
-
-            // See the function's header comment for details on this check
-            int is_good_for_block_matching =
-                assess_block_matching_viability(
-                    q_area->ref_block,
-                    (struct SKRY_point) { .x = x - q_area->ref_block_pos.x,
-                                          .y = y - q_area->ref_block_pos.y },
-                    32); // This cannot be too small (histogram would be too sparse),
-                         // perhaps should depend on 'spacing'
-
-            if (is_neighb_brightness_sufficient &&
-                is_outside_white_disc &&
-                is_good_for_block_matching)
+            if (best_fitness >= structure_threshold)
             {
-                DA_APPEND(result, ((struct SKRY_point) { .x = x, .y = y }));
+                grid[CELL_IDX(grid_row, grid_col)].contains_ref_pt = 1;
+                grid[CELL_IDX(grid_row, grid_col)].ref_pt_pos = best_pos;
+                DA_APPEND(result, best_pos);
             }
         }
 
+
+
+#undef CONTAINS_REF_PT
+
+    free(grid);
     *num_points = DA_SIZE(result);
-    return result.data; // the caller will eventually call free() on it
+    return result.data;
 }

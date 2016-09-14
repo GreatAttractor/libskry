@@ -220,9 +220,9 @@ uint16_t cnd_swap_16(uint16_t x, int do_swap)
 /** Uses the distribution of gradient directions around 'pos' to decide
     if the location is safe for block matching. It is not if the image
     is dominated by a single edge (e.g. the limb of overexposed solar disc,
-    without prominences or resolved spicules). Should block matching be perfomed
+    without prominences or resolved spicules). Should block matching be performed
     in such circumstances, the tracked point would jump along the edge. */
-int assess_block_matching_viability(
+int assess_gradients_for_block_matching(
     const SKRY_Image *img, ///< Must be SKRY_PIX_MONO8
     struct SKRY_point pos,
     unsigned neighborhood_radius)

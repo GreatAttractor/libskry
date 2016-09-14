@@ -541,7 +541,7 @@ struct SKRY_point SKRY_suggest_anchor_pos(
                 // would weigh heavily during block matching and the point would tend to jump along the limb
                 && num_white < num_pixels_in_block/10
 
-                && assess_block_matching_viability(img8,
+                && assess_gradients_for_block_matching(img8,
                         (struct SKRY_point) { .x = x, .y = y},
                         SKRY_MAX(ref_block_size/2, 32)))
             {

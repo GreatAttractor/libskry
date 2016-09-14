@@ -40,8 +40,8 @@ namespace libskry
      1. All classes have default move constructor and move assignment operator declared;
      they simply move the pointer owned by 'pimpl'.
 
-     2. Each 'pimpl' is a 'unique_ptr' holding the libskry's opaque pointer of appropriate type;
-     the unique_ptr's deleter is a matching 'SKRY_free_' function.
+     2. Each 'pimpl' is a smart pointer holding the libskry's opaque pointer of appropriate type;
+     the smart pointer's deleter is a matching 'SKRY_free_' function.
 
      3. The 'pimpl' may be null; all classes all boolean-testable (see 'ISkryPtrWrapper')
      to detect it, e.g.:
@@ -68,6 +68,8 @@ namespace libskry
 
         expects that 0 <= imgIdx < 300. The indexing ignores all non-active images
         (even if active ones are not sequential).
+
+    5. Some of the C++ classes are bound via shared pointers to reflect the bounds between C objects.
     */
 
     class ISkryPtrWrapper
@@ -171,13 +173,6 @@ namespace libskry
             return result;
         }
 
-//        /// Returns a blurred version of the image (SKRY_PIX_MONO8)
-//        /** Requirements: Pixel format is SKRY_PIX_MONO8, iterations * box_radius < 2^22. */ //FIX this comment!
-//        c_Image BoxBlur(unsigned boxRadius, unsigned iterations) const
-//        {
-//            return c_Image(box_blur_img(pimpl.get(), boxRadius, iterations));
-//        }
-
         static c_Image Load(const char *fileName,
                             /// If not null, receives operation result
                             enum SKRY_result *result = nullptr)
@@ -209,8 +204,8 @@ namespace libskry
     /// Movable, non-copyable
     class c_ImageSequence: public ISkryPtrWrapper
     {
-        std::unique_ptr<SKRY_ImgSequence,
-                        SKRY_ImgSequence *(*)(SKRY_ImgSequence *)> pimpl;
+        std::shared_ptr<SKRY_ImgSequence> pimpl;
+
 
         c_ImageSequence(SKRY_ImgSequence *skryImgSeq): pimpl(skryImgSeq, SKRY_free_img_sequence) { }
 
@@ -326,21 +321,31 @@ namespace libskry
             SKRY_reinterpret_img_seq_as_CFA(pimpl.get(), cfaPattern);
         }
 
+        /// Translates index in the active images' subset into absolute index
+        size_t GetAbsoluteImgIdx(size_t activeImgIdx) const
+        {
+            return SKRY_get_absolute_img_idx(pimpl.get(), activeImgIdx);
+        }
+
         friend class c_ImageAlignment;
+        friend class c_QualityEstimation;
     };
 
     /// Movable, non-copyable
     class c_ImageAlignment: public ISkryPtrWrapper
     {
-        std::unique_ptr<SKRY_ImgAlignment,
-                        SKRY_ImgAlignment *(*)(SKRY_ImgAlignment *)> pimpl;
+        std::shared_ptr<SKRY_ImgSequence>  imgSeq_pimpl;
+        std::shared_ptr<SKRY_ImgAlignment> pimpl;
 
         c_ImageAlignment(SKRY_ImgAlignment *skryImgAlign): pimpl(skryImgAlign, SKRY_free_img_alignment) { }
 
     public:
         explicit virtual operator bool() const { return pimpl != nullptr; }
 
-        c_ImageAlignment(): pimpl(nullptr, SKRY_free_img_alignment) { }
+        c_ImageAlignment():
+            imgSeq_pimpl(nullptr, SKRY_free_img_sequence),
+            pimpl(nullptr, SKRY_free_img_alignment)
+        { }
 
         c_ImageAlignment(const c_ImageAlignment &)             = delete;
 
@@ -359,8 +364,10 @@ namespace libskry
             /** Coords relative to the first image's origin;
                 if empty, anchors will be placed automatically. */
             const std::vector<struct SKRY_point> &anchors,
+
             unsigned blockRadius,  ///< Radius (in pixels) of square blocks used for matching images
             unsigned searchRadius, ///< Max offset in pixels (horizontal and vertical) of blocks during matching
+
             /// Min. image brightness that an anchor point can be placed at (values: [0; 1])
             /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
             float placementBrightnessThreshold,
@@ -370,9 +377,11 @@ namespace libskry
             enum SKRY_result *result = nullptr ///< If not null, receives operation result
             )
             : c_ImageAlignment(SKRY_init_img_alignment(imgSeq.pimpl.get(), method, anchors.size(),
-                             anchors.data(), blockRadius, searchRadius,
-                             placementBrightnessThreshold, result))
-        { }
+                               anchors.data(), blockRadius, searchRadius,
+                               placementBrightnessThreshold, result))
+        {
+            imgSeq_pimpl = imgSeq.pimpl;
+        }
 
         /// Returns SKRY_SUCCESS (i.e. more steps left to do), SKRY_LAST_STEP (no more steps) or an error
         enum SKRY_result Step()
@@ -438,9 +447,11 @@ namespace libskry
         /// Returns optimal position of a video stabilization anchor in 'image'
         static struct SKRY_point SuggestAnchorPos(
             const c_Image &image,
+
             /// Min. image brightness that an anchor point can be placed at (values: [0; 1])
             /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
             float placementBrightnessThreshold,
+
             unsigned refBlockSize)
         {
             return SKRY_suggest_anchor_pos(image.pimpl.get(),
@@ -459,15 +470,20 @@ namespace libskry
     /// Movable, non-copyable
     class c_QualityEstimation: public ISkryPtrWrapper
     {
-        std::unique_ptr<SKRY_QualityEstimation,
-                        SKRY_QualityEstimation *(*)(SKRY_QualityEstimation *)> pimpl;
+        std::shared_ptr<SKRY_ImgSequence>       imgSeq_pimpl;
+        std::shared_ptr<SKRY_ImgAlignment>      imgAlgn_pimpl;
+        std::shared_ptr<SKRY_QualityEstimation> pimpl;
 
         c_QualityEstimation(SKRY_QualityEstimation *skryQualEst): pimpl(skryQualEst, SKRY_free_quality_est) { }
 
     public:
         explicit virtual operator bool() const { return pimpl != nullptr; }
 
-        c_QualityEstimation(): pimpl(nullptr, SKRY_free_quality_est) { }
+        c_QualityEstimation():
+            imgSeq_pimpl(nullptr, SKRY_free_img_sequence),
+            imgAlgn_pimpl(nullptr, SKRY_free_img_alignment),
+            pimpl(nullptr, SKRY_free_quality_est)
+        { }
 
         c_QualityEstimation(const c_QualityEstimation &)             = delete;
 
@@ -479,12 +495,17 @@ namespace libskry
 
         c_QualityEstimation(
             c_ImageAlignment &imgAlign,
+
             /// Aligned image sequence will be divided into rectangular areas of this size for quality estimation
             unsigned estimationAreaSize,
+
             /// Corresponds with box blur radius used for quality estimation
             unsigned detailScale
         ): c_QualityEstimation(SKRY_init_quality_est(imgAlign.pimpl.get(), estimationAreaSize, detailScale))
-        { }
+        {
+            imgSeq_pimpl = imgAlign.imgSeq_pimpl;
+            imgAlgn_pimpl = imgAlign.pimpl;
+        }
 
         bool IsComplete() const { return SKRY_is_qual_est_complete(pimpl.get()); }
 
@@ -502,19 +523,37 @@ namespace libskry
             return result;
         }
 
-        SKRY_quality_t GetAvgAreaQuality(int areaIdx) const { return SKRY_get_avg_area_quality(pimpl.get(), areaIdx); }
-
+        /// Returns an array of suggested reference point positions
         std::vector<struct SKRY_point> SuggestRefPointPositions(
             /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
             /** Value is relative to the darkest (0.0) and brightest (1.0) pixels. */
-            float placementBrightnessThreshold,
+            float brightnessThreshold,
+
+            /// Structure detection threshold; value of 1.2 is recommended
+            /** The greater the value, the more local contrast is required to place
+                a ref. point. */
+            float structureThreshold,
+
+            /** Corresponds with pixel size of smallest structures. Should equal 1
+                for optimally-sampled or undersampled images. Use higher values
+                for oversampled (blurry) material. */
+            unsigned structureScale,
+
             /// Spacing in pixels between reference points
-            unsigned spacing)
+            unsigned spacing,
+
+            /// Size of reference blocks used for block matching
+            unsigned refBlockSize
+        ) const
         {
             size_t numPoints;
             struct SKRY_point *newPoints = SKRY_suggest_ref_point_positions(
                                              pimpl.get(), &numPoints,
-                                             placementBrightnessThreshold, spacing);
+                                             brightnessThreshold,
+                                             structureThreshold,
+                                             structureScale,
+                                             spacing,
+                                             refBlockSize);
 
             if (numPoints)
             {
@@ -529,6 +568,20 @@ namespace libskry
             else return { };
         }
 
+        SKRY_quality_t GetAvgAreaQuality(int areaIdx) const { return SKRY_get_avg_area_quality(pimpl.get(), areaIdx); }
+
+        /// Returns index of the best-quality image in the sequence
+        size_t GetBestImageIdx() const
+        {
+            return SKRY_get_best_img_idx(pimpl.get());
+        }
+
+        /// Returns a composite image consisting of best fragments of all frames
+        /** Returns null if out of memory. */
+        c_Image GetBestFragmentsImage() const
+        {
+            return c_Image(SKRY_get_best_fragments_img(pimpl.get()));
+        }
 
         friend class c_RefPointAlignment;
     };
@@ -536,15 +589,22 @@ namespace libskry
     /// Movable, non-copyable
     class c_RefPointAlignment: public ISkryPtrWrapper
     {
-        std::unique_ptr<SKRY_RefPtAlignment,
-                        SKRY_RefPtAlignment *(*)(SKRY_RefPtAlignment *)> pimpl;
+        std::shared_ptr<SKRY_ImgSequence>       imgSeq_pimpl;
+        std::shared_ptr<SKRY_ImgAlignment>      imgAlgn_pimpl;
+        std::shared_ptr<SKRY_QualityEstimation> qualEst_pimpl;
+        std::shared_ptr<SKRY_RefPtAlignment>    pimpl;
 
         c_RefPointAlignment(SKRY_RefPtAlignment *skryRefPtAlign): pimpl(skryRefPtAlign, SKRY_free_ref_pt_alignment) { }
 
     public:
         explicit virtual operator bool() const { return pimpl != nullptr; }
 
-        c_RefPointAlignment(): pimpl(nullptr, SKRY_free_ref_pt_alignment) { }
+        c_RefPointAlignment():
+            imgSeq_pimpl(nullptr, SKRY_free_img_sequence),
+            imgAlgn_pimpl(nullptr, SKRY_free_img_alignment),
+            qualEst_pimpl(nullptr, SKRY_free_quality_est),
+            pimpl(nullptr, SKRY_free_ref_pt_alignment)
+        { }
 
         c_RefPointAlignment(const c_RefPointAlignment &)             = delete;
 
@@ -556,31 +616,63 @@ namespace libskry
 
         c_RefPointAlignment(
             const c_QualityEstimation &qualEst,
+
             /// Reference point positions; if empty, points will be placed automatically
             /** Positions are specified within the images' intersection.
                 The points must not lie outside it. */
-            const std::vector<struct SKRY_point> &refPoints,
-            /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-            /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels.
-                Used only during automatic placement. */
-            float placementBrightnessThreshold,
+            const std::vector<struct SKRY_point> points,
+
             /// Criterion for updating ref. point position (and later for stacking)
             enum SKRY_quality_criterion qualityCriterion,
-            /// Interpreted according to 'qualityCriterion'
+
+            /// Interpreted according to 'quality_criterion'
             unsigned qualityThreshold,
-            /// Spacing in pixels between reference points (used only during automatic placement)
-            unsigned spacing,
+
+            /// Size (in pixels) of reference blocks used for block matching
+            unsigned refBlockSize,
+
+            /// Search radius (in pixels) used during block matching
+            unsigned searchRadius,
+
             /// If not null, receives operation result
-            enum SKRY_result *result = nullptr
+            enum SKRY_result *result,
+
+            // Parameters used if 'points' is empty (automatic placement of ref. points) -----------------
+
+            /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+            /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
+            float placementBrightnessThreshold,
+
+            /// Structure detection threshold; value of 1.2 is recommended
+            /** The greater the value, the more local contrast is required to place
+                a ref. point. */
+            float structureThreshold,
+
+            /** Corresponds with pixel size of smallest structures. Should equal 1
+                for optimally-sampled or undersampled images. Use higher values
+                for oversampled (blurry) material. */
+            unsigned structureScale,
+
+            /// Spacing in pixels between reference points
+            unsigned spacing
         ): c_RefPointAlignment(SKRY_init_ref_pt_alignment(
-                               qualEst.pimpl.get(),
-                               refPoints.size(),
-                               refPoints.data(),
-                               placementBrightnessThreshold,
-                               qualityCriterion,
-                               qualityThreshold,
-                               spacing, result))
-        { }
+                qualEst.pimpl.get(),
+                points.size(),
+                points.data(),
+                qualityCriterion,
+                qualityThreshold,
+                refBlockSize,
+                searchRadius,
+                result,
+                placementBrightnessThreshold,
+                structureThreshold,
+                structureScale,
+                spacing))
+        {
+            imgSeq_pimpl  = qualEst.imgSeq_pimpl;
+            imgAlgn_pimpl = qualEst.imgAlgn_pimpl;
+            qualEst_pimpl = qualEst.pimpl;
+        }
 
         int GetNumReferencePoints() const { return SKRY_get_num_ref_pts(pimpl.get()); }
 
@@ -604,15 +696,24 @@ namespace libskry
     /// Movable, non-copyable
     class c_Stacking: public ISkryPtrWrapper
     {
-        std::unique_ptr<SKRY_Stacking,
-                        SKRY_Stacking *(*)(SKRY_Stacking *)> pimpl;
+        std::shared_ptr<SKRY_ImgSequence>       imgSeq_pimpl;
+        std::shared_ptr<SKRY_ImgAlignment>      imgAlgn_pimpl;
+        std::shared_ptr<SKRY_QualityEstimation> qualEst_pimpl;
+        std::shared_ptr<SKRY_RefPtAlignment>    refPtAlgn_pimpl;
+        std::shared_ptr<SKRY_Stacking>          pimpl;
 
         c_Stacking(SKRY_Stacking *skryStacking): pimpl(skryStacking, SKRY_free_stacking) { }
 
     public:
         explicit virtual operator bool() const { return pimpl != nullptr; }
 
-        c_Stacking(): pimpl(nullptr, SKRY_free_stacking) { }
+        c_Stacking():
+            imgSeq_pimpl(nullptr, SKRY_free_img_sequence),
+            imgAlgn_pimpl(nullptr, SKRY_free_img_alignment),
+            qualEst_pimpl(nullptr, SKRY_free_quality_est),
+            refPtAlgn_pimpl(nullptr, SKRY_free_ref_pt_alignment),
+            pimpl(nullptr, SKRY_free_stacking)
+        { }
 
         c_Stacking(const c_Stacking &)             = delete;
 
@@ -629,7 +730,12 @@ namespace libskry
                    enum SKRY_result *result = nullptr
         ): c_Stacking(SKRY_init_stacking(refPtAlign.pimpl.get(),
                       (flatfield ? flatfield->pimpl.get() : nullptr), result))
-        { }
+        {
+            imgSeq_pimpl    = refPtAlign.imgSeq_pimpl;
+            imgAlgn_pimpl   = refPtAlign.imgAlgn_pimpl;
+            qualEst_pimpl   = refPtAlign.qualEst_pimpl;
+            refPtAlgn_pimpl = refPtAlign.pimpl;
+        }
 
         enum SKRY_result Step() { return SKRY_stacking_step(pimpl.get()); }
 

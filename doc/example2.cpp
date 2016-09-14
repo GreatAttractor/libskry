@@ -104,13 +104,24 @@ int main(int argc, char *argv[])
             qualEst,
             { }, // pass an empty vector; reference points
                  // will be placed automatically
-            0.33f, // min. relative brightness to place points at;
-                   // avoid the dark background
+
             // Consider only 30% of the best-quality frame fragments
             // (this criterion later also applies to stacking)
             SKRY_PERCENTAGE_BEST, 30,
-            40, // point spacing in pixels
-            &result);
+
+            32, // reference block size
+            20, // ref. block search radius
+
+            &result,
+
+            0.33f, // min. relative brightness to place points at;
+                   // avoid the dark background
+
+            1.2f, // structure detection threshold; value 1.2 is recommended
+
+            1, // structure scale in pixels
+
+            40); // point spacing in pixels
 
     if (result != SKRY_SUCCESS)
     {

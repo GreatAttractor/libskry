@@ -31,17 +31,16 @@ File description:
 #define MIN_FRACTION_OF_BLOCK_TO_MATCH 4
 
 /** Returns the sum of squared differences between pixels of 'img' and 'ref_block',
-    with 'ref_block's center aligned on (cx, cy) over 'img'. The differences are
+    with 'ref_block's center aligned on 'pos' over 'img'. The differences are
     calculated only for the 'refblk_rect' portion of 'ref_block'.
 
     Both 'ref_block' and 'img' must be SKRY_PIX_MONO8. The result is 64-bit, so for
     8-bit images it can accommodate a block of 2^(64-2*8) = 2^48 pixels.
 */
-static
 uint64_t calc_sum_of_squared_diffs(
     const SKRY_Image *img,       ///< Image (SKRY_PIX_MONO8) to compare with the reference area in 'comp_block'
     const SKRY_Image *ref_block, ///< Block of pixels (reference area) used for comparison; smaller than 'img'
-    struct SKRY_point *pos,      ///< Position of 'ref_block's center inside 'img'
+    const struct SKRY_point *pos,      ///< Position of 'ref_block's center inside 'img'
     const struct SKRY_rect refblk_rect ///< Part of 'ref_block' to be used for comparison
     )
 {
@@ -162,25 +161,34 @@ void find_matching_position(
                 int refblk_rect_xmax = (x + (int)blkw/2 <= (int)imgw) ? blkw : blkw - (x + (int)blkw/2 - (int)imgw);
                 int refblk_rect_ymax = (y + (int)blkh/2 <= (int)imgh) ? blkh : blkh - (y + (int)blkh/2 - (int)imgh);
 
-                refblk_rect.width = refblk_rect_xmax - refblk_rect.x;
-                refblk_rect.height = refblk_rect_ymax - refblk_rect.y;
-
                 uint64_t sum_sq_diffs;
 
-                if (refblk_rect.width < blkw/MIN_FRACTION_OF_BLOCK_TO_MATCH ||
-                    refblk_rect.height < blkh/MIN_FRACTION_OF_BLOCK_TO_MATCH)
+                if (refblk_rect.x >= refblk_rect_xmax ||
+                    refblk_rect.y >= refblk_rect_ymax)
                 {
-                    // ref. block completely outside image or the fragment to compare is too small
+                    // ref. block completely outside image
                    sum_sq_diffs = UINT64_MAX;
                 }
                 else
                 {
-                    sum_sq_diffs = calc_sum_of_squared_diffs(image, ref_block,
-                                                            &(struct SKRY_point) { .x = x, .y = y },
-                                                            refblk_rect);
+                    refblk_rect.width = refblk_rect_xmax - refblk_rect.x;
+                    refblk_rect.height = refblk_rect_ymax - refblk_rect.y;
 
-                    // The sum must be normalized in order to be comparable with others
-                    sum_sq_diffs *= blkw*blkh / (refblk_rect.width*refblk_rect.height);
+                    if (refblk_rect.width < blkw/MIN_FRACTION_OF_BLOCK_TO_MATCH ||
+                        refblk_rect.height < blkh/MIN_FRACTION_OF_BLOCK_TO_MATCH)
+                    {
+                        // ref. block too small to compare
+                        sum_sq_diffs = UINT64_MAX;
+                    }
+                    else
+                    {
+                        sum_sq_diffs = calc_sum_of_squared_diffs(image, ref_block,
+                                                                &(struct SKRY_point) { .x = x, .y = y },
+                                                                refblk_rect);
+
+                        // The sum must be normalized in order to be comparable with others
+                        sum_sq_diffs *= blkw*blkh / (refblk_rect.width*refblk_rect.height);
+                    }
                 }
 
                 if (sum_sq_diffs < min_sq_diff_sum)

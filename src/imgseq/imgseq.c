@@ -447,3 +447,22 @@ void SKRY_reinterpret_img_seq_as_CFA(
 {
     img_seq->CFA_pattern = CFA_pattern;
 }
+
+/// Translates index in the active images' subset into absolute index
+size_t SKRY_get_absolute_img_idx(const SKRY_ImgSequence *img_seq, size_t active_img_idx)
+{
+    size_t abs_idx = 0;
+    size_t active_img_counter = 0;
+    while (abs_idx < img_seq->num_images)
+    {
+        if (active_img_counter == active_img_idx)
+            break;
+
+        if (img_seq->is_img_active[abs_idx])
+            active_img_counter++;
+
+        abs_idx++;
+    }
+
+    return abs_idx;
+}

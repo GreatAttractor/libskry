@@ -40,18 +40,41 @@ SKRY_RefPtAlignment *SKRY_init_ref_pt_alignment(
     /** Positions are specified within the images' intersection.
         The points must not lie outside it. */
     const struct SKRY_point *points,
-    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
-    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels.
-        Used only during automatic placement. */
-    float placement_brightness_threshold,
+
     /// Criterion for updating ref. point position (and later for stacking)
     enum SKRY_quality_criterion quality_criterion,
+
     /// Interpreted according to 'quality_criterion'
     unsigned quality_threshold,
-    /// Spacing in pixels between reference points (used only during automatic placement)
-    unsigned spacing,
+
+    /// Size (in pixels) of reference blocks used for block matching
+    unsigned ref_block_size,
+
+    /// Search radius (in pixels) used during block matching
+    unsigned search_radius,
+
     /// If not null, receives operation result
-    enum SKRY_result *result);
+    enum SKRY_result *result,
+
+    // Parameters used if num_points==0 (automatic placement of ref. points) -----------------
+
+    /// Min. image brightness that a ref. point can be placed at (values: [0; 1])
+    /** Value is relative to the image's darkest (0.0) and brightest (1.0) pixels. */
+    float placement_brightness_threshold,
+
+    /// Structure detection threshold; value of 1.2 is recommended
+    /** The greater the value, the more local contrast is required to place
+        a ref. point. */
+    float structure_threshold,
+
+    /** Corresponds with pixel size of smallest structures. Should equal 1
+        for optimally-sampled or undersampled images. Use higher values
+        for oversampled (blurry) material. */
+    unsigned structure_scale,
+
+    /// Spacing in pixels between reference points
+    unsigned spacing
+);
 
 /// Returns null
 SKRY_RefPtAlignment *SKRY_free_ref_pt_alignment(SKRY_RefPtAlignment *ref_pt_align);

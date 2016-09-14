@@ -124,17 +124,29 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+
     ref_pt_align =
         SKRY_init_ref_pt_alignment(
             qual_est,
             0, 0, // reference points will be placed automatically
-            0.33f, // min. relative brightness to place points at;
-                   // avoid the dark background
+
             // Consider only 30% of the best-quality frame fragments
             // (this criterion later also applies to stacking)
             SKRY_PERCENTAGE_BEST, 30,
-            40, // point spacing in pixels
-            &result);
+
+            32, // reference block size
+            20, // ref. block search radius
+
+            &result,
+
+            0.33f, // min. relative brightness to place points at;
+                   // avoid the dark background
+
+            1.2f, // structure threshold; 1.2 is recommended
+
+            1, // structure scale (in pixels)
+
+            40); // point spacing in pixels
 
     if (SKRY_SUCCESS != result)
     {

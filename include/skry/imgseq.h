@@ -156,5 +156,7 @@ void SKRY_reinterpret_img_seq_as_CFA(
          /// Specify SKRY_CFA_NONE to disable pixel format overriding
          enum SKRY_CFA_pattern CFA_pattern);
 
+/// Translates index in the active images' subset into absolute index
+size_t SKRY_get_absolute_img_idx(const SKRY_ImgSequence *img_seq, size_t active_img_idx);
 
 #endif // LIB_STACKISTRY_IMG_SEQ_HEADER
