@@ -866,7 +866,7 @@ struct SKRY_point *SKRY_suggest_ref_point_positions(
     const int num_grid_cols = intersection.width / grid_step;
     const int num_grid_rows = intersection.height / grid_step;
 
-    DA_DECLARE(struct SKRY_point) result; // The caller will eventually call free() on 'result.data'
+    DA_DECLARE(struct SKRY_point) result;
     DA_ALLOC(result, 0);
 
     struct
@@ -901,10 +901,12 @@ struct SKRY_point *SKRY_suggest_ref_point_positions(
 
             // Do not try to place ref. points too close to images' intersection border
             int ystart = (grid_row > 0) ? 0 : ref_block_size/2;
-            int yend = (grid_row <= num_grid_rows-2) ? grid_step : grid_step - ref_block_size/2;
+            int yend = (grid_row <= num_grid_rows-2) ? grid_step
+                                                     : intersection.height - (num_grid_rows-1) * grid_step - ref_block_size/2;
 
             int xstart = (grid_col > 0) ? 0 : ref_block_size/2;
-            int xend = (grid_col <= num_grid_cols-2) ? grid_step : grid_step - ref_block_size/2;
+            int xend = (grid_col <= num_grid_cols-2) ? grid_step
+                                                     : intersection.width - (num_grid_cols-1) * grid_step - ref_block_size/2;
 
             for (int y = ystart; y < yend; y += search_step)
                 for (int x = xstart; x < xend; x += search_step)
@@ -949,5 +951,7 @@ struct SKRY_point *SKRY_suggest_ref_point_positions(
 
     free(grid);
     *num_points = DA_SIZE(result);
+
+    // The caller will eventually call free() on it
     return result.data;
 }
