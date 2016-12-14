@@ -4,7 +4,7 @@
 
 Copyright (C) 2016 Filip Szczerek (ga.software@yahoo.com)
 
-version 0.1.1 (2016-08-05)
+version 0.2.0 (2016-12-14)
 
 *This library comes with ABSOLUTELY NO WARRANTY. This is free software, licensed under GNU General Public License v3 or any later version and you are welcome to redistribute it under certain conditions. See the LICENSE file for details.*
 
@@ -25,7 +25,7 @@ version 0.1.1 (2016-08-05)
 
 **libskry** implements the *lucky imaging* principle of astronomical imaging: creating a high-quality still image out of a series of many (possibly thousands) low quality ones (blurred, deformed, noisy). The resulting *image stack* typically requires post-processing, including sharpening (e.g. via deconvolution). Such post-processing is not performed by libskry.
 
-For a comprehensive example of libskry's usage, see the Stackistry project.
+For a comprehensive example of libskry's usage, see the **[Stackistry](https://github.com/GreatAttractor/stackistry/)** project.
 
 
 ----------------------------------------
@@ -33,7 +33,7 @@ For a comprehensive example of libskry's usage, see the Stackistry project.
 
 Building libskry requires a C99-compatible C compiler. A GNU Make-compatible Makefile is provided (tested under Linux and MinGW/MSYS). Multi-threaded processing requires a compiler with OpenMP support.
 
-If Make cannot be used, simply compile all *.c files and link them into a library.
+If Make cannot be used, simply compile all `*.c` files and link them into a library.
 
 
 ----------------------------------------
@@ -122,8 +122,8 @@ Using the C++ wrappers requires a C++11-capable compiler. Refer to ``include/skr
 
 All classes have default move constructor and move assignment operator declared; they simply move the pointer owned by ``pimpl``.
 
-Each ``pimpl`` is a ``unique_ptr`` holding the libskry's opaque pointer of appropriate type;
-the ``unique_ptr``'s deleter is a matching ``SKRY_free_`` function.
+Each ``pimpl`` is a smart pointer holding the libskry's opaque pointer of appropriate type;
+the pointer's deleter is a matching ``SKRY_free_`` function.
 
 The ``pimpl`` may be null; all classes all boolean-testable (see ``ISkryPtrWrapper``)
 to detect it, e.g.:
@@ -147,6 +147,13 @@ else
 ## 6. Change log
 
 ```
+0.2.0 (2016-12-14)
+  New features:
+    - Image alignment using the intensity centroid (useful for planets)
+    - Structure detection for better automatic placement of reference points
+  Bug fixes:
+    - Fixed opening AVI files produced by FFMPEG
+
 0.1.1 (2016-08-05)
   New features:
     - Support for Y8/Y800 AVI files
