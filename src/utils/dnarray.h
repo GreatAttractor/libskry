@@ -80,7 +80,7 @@ do {                                                       \
     /* Can't use 'new_capacity_exp' elsewhere in the macro  */          \
     /* directly, because it could be passed as e.g. DA_SIZE(darray); */ \
     /* substituting this below would be disastrous. */     \
-    size_t new_capacity = (size_t)new_capacity_expr;       \
+    size_t new_capacity = (size_t)(new_capacity_expr);     \
     (darray).data = realloc((darray).data, new_capacity * sizeof(*(darray).data)); \
     assert((darray).data);                                 \
     (darray).storage_end = (darray).data + new_capacity;   \

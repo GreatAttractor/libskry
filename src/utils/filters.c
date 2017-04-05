@@ -35,7 +35,7 @@ File description:
 #define QUALITY_ESTIMATE_BOX_BLUR_ITERATIONS 3
 
 /** Performs a blurring pass of a single row or column.
-    Using a macro, because 'src_line' can be a pointer to uint8_t or uint32_t. */
+    Using a macro, because 'src' can be a pointer to uint8_t or uint32_t. */
 #define BOX_BLUR_PASS(src, pix_sum, box_radius, length, step)                                   \
 {                                                                                               \
     /* Sum for the first pixel in the current line/row   */                                     \
@@ -195,7 +195,7 @@ enum SKRY_result box_blur(uint8_t *src, uint8_t *blurred, unsigned width, unsign
 
 /// Returns blurred image (SKRY_PIX_MONO8) or null if out of memory
 /** Requirements: img is SKRY_PIX_MONO8, box_radius < 2^11 */
-struct SKRY_image *box_blur_img(struct SKRY_image *img, unsigned box_radius, size_t iterations)
+struct SKRY_image *box_blur_img(const struct SKRY_image *img, unsigned box_radius, size_t iterations)
 {
     assert(SKRY_get_img_pix_fmt(img) == SKRY_PIX_MONO8);
 
@@ -302,7 +302,7 @@ void shift_sorted_window(double array[], size_t length, double remove_val, doubl
 }
 
 /// Perform median filtering on 'array'
-void median_filter(double array[],
+void median_filter(const double array[],
                    double output[], ///< Receives filtered contents of 'array'
                    size_t array_len,
                    size_t window_radius)

@@ -34,6 +34,7 @@ struct SKRY_edge
     size_t v0, v1; // contained vertices (ends)
     size_t t0, t1; // adjacent triangles (if there is only one, t0 or t1 will be SKRY_EMPTY)
     size_t w0, w1; // opposing vertices (if there is only one, w0 or w1 will be SKRY_EMPTY)
+    // Note: w0 may belong to either t0 or t1; the same goes for w1.
 };
 
 struct SKRY_triangle
@@ -41,16 +42,19 @@ struct SKRY_triangle
     size_t v0, v1, v2; // vertices in CCW order
 
     // Edges in CCW order: e0 contains v0,v1; e1 contains v1,v2; e2 contains v2,v0.
-    // Note: in triangulation's 'edges' array the edges' vertices may not be stored in this order
+    // Note: in triangulation's 'edges' array the edges' vertices may not be specified in this order
     size_t e0, e1, e2;
 };
 
 /** Finds Delaunay triangulation for the specified point set; also adds (at the end
     of points' list) three additional points for the initial triangle which covers
     the whole set and 'envelope'. Returns null if out of memory. */
-SKRY_Triangulation *SKRY_find_delaunay_triangulation(size_t num_points, struct SKRY_point points[],
-                                                     /// Must be big enough to cover the whole set of 'points'
-                                                     struct SKRY_rect envelope);
+SKRY_Triangulation *SKRY_find_delaunay_triangulation(
+        size_t num_points,
+        /// All points have to be different
+        const struct SKRY_point points[],
+        /// Must be big enough to cover the whole set of 'points'
+        struct SKRY_rect envelope);
 
 /// Returns null
 SKRY_Triangulation *SKRY_free_triangulation(SKRY_Triangulation *tri);

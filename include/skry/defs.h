@@ -228,6 +228,8 @@ struct SKRY_rect
 
 #define ROUND_TO_NEAREST(x) ((int)((x) >= 0 ? (x) + 0.5 : (x) - 0.5))
 
+#define POINTS_EQ(point1, point2) ((point1).x == (point2).x && (point1).y == (point2).y)
+
 typedef void SKRY_log_callback_fn(unsigned log_event_type, const char *msg);
 
 typedef double SKRY_clock_sec_fn(void);

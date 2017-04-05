@@ -1,6 +1,6 @@
 /*
 libskry - astronomical image stacking
-Copyright (C) 2016 Filip Szczerek <ga.software@yahoo.com>
+Copyright (C) 2016, 2017 Filip Szczerek <ga.software@yahoo.com>
 
 This file is part of libskry.
 
@@ -54,23 +54,33 @@ void replace_adjacent_triangle(struct SKRY_edge *edge, size_t told, size_t tnew)
     ((vertex) == (triangle)->v0 || (vertex) == (triangle)->v1 || (vertex) == (triangle)->v2)
 
 static
-size_t next_vertex(struct SKRY_triangle *t, size_t vertex)
+size_t next_vertex(const struct SKRY_triangle *t, size_t vertex)
 {
     if (vertex == t->v0) return t->v1;
     else if (vertex == t->v1) return t->v2;
     else if (vertex == t->v2) return t->v0;
-    else return SKRY_EMPTY; // this should never happen
+    else
+    {
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Attempted to get next vertex after %zu in triangle (%zu, %zu, %zu)! Aborting.",
+                vertex, t->v0, t->v1, t->v2);
+        abort();
+    }
 }
 
 // Each vertex has a 'leading' and a 'trailing' edge (corresponding to CCW order).
 // The 'leading' edge is the one which contains the vertex and a vertex which succeeds it in CCW order.
 static
-size_t get_leading_edge_containing_vertex(struct SKRY_triangle *t, size_t vertex)
+size_t get_leading_edge_containing_vertex(const struct SKRY_triangle *t, size_t vertex)
 {
     if (vertex == t->v0) return t->e0;
     else if (vertex == t->v1) return t->e1;
     else if (vertex == t->v2) return t->e2;
-    else return SKRY_EMPTY; // this should never happen
+    else
+    {
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Attempted to get leading edge containing vertex %zu in triangle (%zu, %zu, %zu)! Aborting.",
+                vertex, t->v0, t->v1, t->v2);
+        abort();
+    }
 }
 
 struct SKRY_triangulation
@@ -82,7 +92,7 @@ struct SKRY_triangulation
 };
 
 static
-int is_inside_circumcircle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
+int is_inside_circumcircle(size_t pidx, size_t tidx, const SKRY_Triangulation *tri)
 {
     struct SKRY_point *p = &tri->vertices[pidx];
     struct SKRY_triangle *t = &tri->triangles.data[tidx];
@@ -148,7 +158,7 @@ int is_inside_circumcircle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
 //TODO: use the other "calc. bary..." function
 //FIXME: detect degenerate triangles
 static
-int is_inside_triangle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
+int is_inside_triangle(size_t pidx, size_t tidx, const SKRY_Triangulation *tri)
 {
     struct SKRY_point *p = &tri->vertices[pidx];
 
@@ -197,27 +207,26 @@ int is_inside_triangle(size_t pidx, size_t tidx, SKRY_Triangulation *tri)
 */
 static
 void test_and_swap_edge(SKRY_Triangulation *tri, size_t e,
-                        // edges to skip when checking what needs swapping
+                        // edges to skip when checking what needs swapping (may be SKRY_EMPTY)
                         size_t eskip1, size_t eskip2)
 {
     struct SKRY_edge *tri_edges = tri->edges.data;
 
     // edge 'e' before the swap
-    struct SKRY_edge eprev = tri->edges.data[e];
+    const struct SKRY_edge eprev = tri->edges.data[e];
 
     // 0) Check the Delaunay condition for 'e's adjacent triangles
 
     if (tri_edges[e].t0 == SKRY_EMPTY || tri_edges[e].t1 == SKRY_EMPTY)
     {
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: external edge, not swapping.", e);
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): external edge, not swapping.",
+                e, tri_edges[e].v0, tri_edges[e].v1);
         return;
     }
 
     // triangles which share edge 'e' before the swap
     struct SKRY_triangle *t0prev = &tri->triangles.data[eprev.t0],
                            *t1prev = &tri->triangles.data[eprev.t1];
-
-
 
     //TODO: guarantee that always 'w0' belongs to 't0' and 'w1' to 't1' - then we can get rid of all the "contains" checks below
 
@@ -226,38 +235,42 @@ void test_and_swap_edge(SKRY_Triangulation *tri, size_t e,
     if (!swap_needed && TRI_CONTAINS(t0prev, eprev.w0) && is_inside_circumcircle(eprev.w1, eprev.t0, tri))
     {
         swap_needed = 1;
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: needs swapping, because tri %zu contains vertex %zu and vertex %zu "
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): needs swapping, because tri %zu contains vertex %zu and vertex %zu "
                                         "is inside the tri's c-circle.",
-                                                      e,                         eprev.t0,           eprev.w0,      eprev.w1);
+                                                      e, tri_edges[e].v0,
+                                                         tri_edges[e].v1,                   eprev.t0,           eprev.w0,      eprev.w1);
     }
 
     if (!swap_needed && TRI_CONTAINS(t0prev, eprev.w1) && is_inside_circumcircle(eprev.w0, eprev.t0, tri))
     {
         swap_needed = 1;
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: needs swapping, because tri %zu contains vertex %zu and vertex %zu "
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): needs swapping, because tri %zu contains vertex %zu and vertex %zu "
                                         "is inside the tri's c-circle.",
-                                                      e,                         eprev.t0,            eprev.w1,     eprev.w0);
+                                                      e, tri_edges[e].v0,
+                                                         tri_edges[e].v1,                   eprev.t0,            eprev.w1,     eprev.w0);
     }
 
     if (!swap_needed && TRI_CONTAINS(t1prev, eprev.w0) && is_inside_circumcircle(eprev.w1, eprev.t1, tri))
     {
         swap_needed = 1;
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: needs swapping, because tri %zu contains vertex %zu and vertex %zu "
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): needs swapping, because tri %zu contains vertex %zu and vertex %zu "
                                         "is inside the tri's c-circle.",
-                                                      e,                         eprev.t1,           eprev.w0,      eprev.w1);
+                                                      e, tri_edges[e].v0,
+                                                         tri_edges[e].v1,                   eprev.t1,           eprev.w0,      eprev.w1);
     }
 
     if (!swap_needed && TRI_CONTAINS(t1prev, eprev.w1) && is_inside_circumcircle(eprev.w0, eprev.t1, tri))
     {
         swap_needed = 1;
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: needs swapping, because tri %zu contains vertex %zu and vertex %zu "
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): needs swapping, because tri %zu contains vertex %zu and vertex %zu "
                                         "is inside the tri's c-circle.",
-                                                      e,                         eprev.t1,           eprev.w1,      eprev.w0);
+                                                      e, tri_edges[e].v0,
+                                                         tri_edges[e].v1,                   eprev.t1,            eprev.w1,      eprev.w0);
     }
 
     if (!swap_needed)
     {
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu: not swapping.", e);
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Testing edge %zu (%zu-%zu): not swapping.", e, tri_edges[e].v0, tri_edges[e].v1);
         return;
     }
 
@@ -372,23 +385,346 @@ void test_and_swap_edge(SKRY_Triangulation *tri, size_t e,
 
     // overwrite the old triangles
     *t0prev = t0new;
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Modified tri %zu to (%zu, %zu, %zu)",
+            eprev.t0,
+            t0new.v0, t0new.v1, t0new.v2);
+
     *t1prev = t1new;
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Modified tri %zu to (%zu, %zu, %zu)",
+            eprev.t1,
+            t1new.v0, t1new.v1, t1new.v2);
 
     for (size_t i = 0; i < num_edges_to_check; i++)
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Edge %zu needs to be checked.", edges_to_check[i]);
+        LOG_MSG(SKRY_LOG_TRIANGULATION, "Edge %zu (%zu-%zu) needs to be checked.",
+                edges_to_check[i],
+                tri_edges[edges_to_check[i]].v0,
+                tri_edges[edges_to_check[i]].v1);
 
     // Recursively check the affected edges
     for (size_t i = 0; i < num_edges_to_check; i++)
         test_and_swap_edge(tri, edges_to_check[i], e, SKRY_EMPTY);
 }
 
+/// Adds a new point inside an existing triangle
+static
+void add_point_inside_triangle(SKRY_Triangulation *tri,
+                               size_t pidx, ///< Index of point to insert
+                               size_t tidx  ///< Index of triangle to insert the point into
+)
+{
+    // Subdivide 't' into 3 sub-triangles 'tsub0', 'tsub1', 'tsub3' using 'pidx'
+    //
+    // The order of existing triangles has to be preserved (they are referenced by the existing edges),
+    // so replace 't' by 'tsub0' and add 'tsub1' and 'tsub2' at the triangle array's end.
+
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Inserting point %zu (%d, %d) into triangle %zu.",
+            pidx, tri->vertices[pidx].x, tri->vertices[pidx].y, tidx);
+
+    struct SKRY_triangle tsub0;
+    size_t tsub0idx = tidx;
+
+    // Add 2 new triangles
+
+    DA_SET_SIZE(tri->triangles, DA_SIZE(tri->triangles) + 2);
+    size_t tsub1idx = DA_SIZE(tri->triangles) - 2;
+    size_t tsub2idx = DA_SIZE(tri->triangles) - 1;
+
+    struct SKRY_triangle *tsub1 = &tri->triangles.data[tsub1idx],
+                         *tsub2 = &tri->triangles.data[tsub2idx];
+
+    struct SKRY_triangle *t = &tri->triangles.data[tidx];
+
+    // Add 3 new edges 'enew0', 'enew1', 'enew2' which connect 't.v0', 't.v1', 't.v2' with 'pidx'
+
+    DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v0, .v1 = pidx, .t0 = tsub0idx, .t1 = tsub2idx, .w0 = t->v1, .w1 = t->v2 }));
+    size_t enew0 = DA_SIZE(tri->edges) - 1;
+
+    DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v1, .v1 = pidx, .t0 = tsub0idx, .t1 = tsub1idx, .w0 = t->v0, .w1 = t->v2 }));
+    size_t enew1 = DA_SIZE(tri->edges) - 1;
+
+    DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v2, .v1 = pidx, .t0 = tsub1idx, .t1 = tsub2idx, .w0 = t->v1, .w1 = t->v0 }));
+    size_t enew2 = DA_SIZE(tri->edges) - 1;
+
+    // Fill the new triangles' data
+
+    tsub0.v0 = pidx;
+    tsub0.v1 = t->v0;
+    tsub0.v2 = t->v1;
+    tsub0.e0 = enew0;
+    tsub0.e1 = t->e0;
+    tsub0.e2 = enew1;
+
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Changed tri %zu to its sub-tri (%zu, %zu, %zu)",
+            tidx,
+            tsub0.v0, tsub0.v1, tsub0.v2);
+
+    tsub1->v0 = pidx;
+    tsub1->v1 = t->v1;
+    tsub1->v2 = t->v2;
+    tsub1->e0 = enew1;
+    tsub1->e1 = t->e1;
+    tsub1->e2 = enew2;
+
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Added new sub-tri %zu: (%zu, %zu, %zu).",
+            tsub1idx,
+            tsub1->v0, tsub1->v1, tsub1->v2);
+
+    tsub2->v0 = pidx;
+    tsub2->v1 = t->v2;
+    tsub2->v2 = t->v0;
+    tsub2->e0 = enew2;
+    tsub2->e1 = t->e2;
+    tsub2->e2 = enew0;
+
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Added new sub-tri %zu: (%zu, %zu, %zu).",
+            tsub2idx,
+            tsub2->v0, tsub2->v1, tsub2->v2);
+
+    // Update adjacent triangle and opposing vertex data for 't's edges
+
+    struct SKRY_edge *tri_edges = tri->edges.data;
+
+    replace_opposing_vertex(&tri_edges[t->e0], t->v2, pidx);
+    replace_adjacent_triangle(&tri_edges[t->e0], tidx, tsub0idx);
+
+    replace_opposing_vertex(&tri_edges[t->e1], t->v0, pidx);
+    replace_adjacent_triangle(&tri_edges[t->e1], tidx, tsub1idx);
+
+    replace_opposing_vertex(&tri_edges[t->e2], t->v1, pidx);
+    replace_adjacent_triangle(&tri_edges[t->e2], tidx, tsub2idx);
+
+    // Keep note of the 't's edges for the subsequent Delaunay check
+    size_t te0 = t->e0, te1 = t->e1, te2 = t->e2;
+
+    // Original triangle 't' is no longer needed, replace it with 'tsub0'
+    *t = tsub0;
+
+    // 3) Check Delaunay condition for the old 't's edges and swap them if necessary.
+    //    Also recursively check any edges affected by the swap.
+
+    test_and_swap_edge(tri, te0, enew0, enew1);
+    test_and_swap_edge(tri, te1, enew1, enew2);
+    test_and_swap_edge(tri, te2, enew2, enew0);
+}
+
+/// Adds a new point belonging to an existing edge
+static
+void add_point_on_edge(SKRY_Triangulation *tri,
+                       size_t pidx, ///< Index of point to insert
+                       size_t eidx  ///< Index of edge to insert the point into
+)
+{
+    /*
+        Starting configuration: (| = edge 'e')
+
+             v0
+            .|.
+           . | .
+         q0  |  .
+         .   |   q3
+        .    |    .
+      wt0    p     wt1
+       .  t0 | t1  .
+        .    |    .
+        q1   |   q2
+          .  |  .
+           . | .
+            v1
+
+
+        Point 'p' is inserted into edge 'e', which has adjacent triangles t0, t1
+        and the corresponding opposing vertices wt0, wt1. The adjacent triangles
+        form a quadrilateral (with edges q0-3) whose diagonal is the edge 'e'.
+
+        Edge 'e' is subdivided into e0, e1, where e0 contains v0 and e1 contains v1.
+        This creates two more edges e2, e3, which subdivide triangle t0 into triangles t0a/t0b
+        and triangle t1 into t1a/t1b:
+
+             v0
+            .|.
+           . | .
+         q0  |  .
+         .   e0  . q3
+        .    |    .
+       . t0a | t1b .
+      .      |      .
+   wt0...e2..p...e3..wt1
+     .       |       .
+      .  t0b |      .
+       .     | t1a .
+        .    |    .
+        q1   e1  q2
+          .  |  .
+           . | .
+            v1
+
+        After subdivision, the Delaunay condition needs to be checked for edges e0..3, q0..3.
+
+     */
+
+    struct SKRY_edge *e = &tri->edges.data[eidx];
+    struct SKRY_triangle *t0 = &tri->triangles.data[e->t0],
+                         *t1 = &tri->triangles.data[e->t1];
+
+    size_t wt0_idx; // Vertex opposite of 'e' belonging to 't0'
+    size_t wt1_idx; // Vertex opposite of 'e' belonging to 't1'
+    if (TRI_CONTAINS(t0, e->w0))
+    {
+        wt0_idx = e->w0;
+        wt1_idx = e->w1;
+    }
+    else
+    {
+        wt0_idx = e->w1;
+        wt1_idx = e->w0;
+    }
+
+    // Edges of the quadrilateral (e->v0, wt0_idx, e->v2, wt1_idx);
+    // q0 contains (e->v0, wt0_idx); q1, q2, q3 are the subsequent edges in CCW order.
+    const size_t q0_idx = get_leading_edge_containing_vertex(t0, e->v0),
+                 q1_idx = get_leading_edge_containing_vertex(t0, wt0_idx),
+                 q2_idx = get_leading_edge_containing_vertex(t1, e->v1),
+                 q3_idx = get_leading_edge_containing_vertex(t1, wt1_idx);
+    struct SKRY_edge *q0 = &tri->edges.data[q0_idx],
+                     *q1 = &tri->edges.data[q1_idx],
+                     *q2 = &tri->edges.data[q2_idx],
+                     *q3 = &tri->edges.data[q3_idx];
+
+
+    // We subdivide the 2 triangles adjacent to 'e' into two new triangles each. Old triangles in the array
+    // will be reused, so make room for just 2 new ones.
+    DA_SET_SIZE(tri->triangles, DA_SIZE(tri->triangles) + 2);
+
+    // 't0' gets subdivided into 't0a', 't0b'
+    // 't0a' reuses the storage of 't0'
+    size_t t0a_idx = e->t0;
+    size_t t0b_idx = DA_SIZE(tri->triangles) - 2; // the 1st of the newly allocated triangles
+    struct SKRY_triangle t0a, *t0b = &tri->triangles.data[t0b_idx];
+
+    // 't1' gets subdivided into 't1a', 't1b'
+    // 't1a' reuses the storage of 't1'
+    size_t t1a_idx = e->t1;
+    size_t t1b_idx = DA_SIZE(tri->triangles) - 1; // the 2nd of the newly allocated triangles
+    struct SKRY_triangle t1a, *t1b = &tri->triangles.data[t1b_idx];
+
+
+    // We subdivide 'e' into two edges at point 'pidx' and create 2 more edges connected to 'pidx'.
+    // The array element storing 'e' will be reused, so make room for just 3 new ones.
+    DA_SET_SIZE(tri->edges, DA_SIZE(tri->edges) + 3);
+
+    // Edge 'e' (of 'eidx') get subdivided into 'e0' and 'e1'. New edge 'e2' belongs to 't0',
+    // new edge 'e3' belongs to 't1'.
+    const size_t num_edges = DA_SIZE(tri->edges);
+    const size_t e0_idx = eidx,
+                 e1_idx = num_edges - 3,
+                 e2_idx = num_edges - 2,
+                 e3_idx = num_edges - 1;
+    struct SKRY_edge e0, *e1 = &tri->edges.data[e1_idx],
+                         *e2 = &tri->edges.data[e2_idx],
+                         *e3 = &tri->edges.data[e3_idx];
+
+
+    e0.v0 = pidx;
+    e0.v1 = e->v0;
+    e0.t0 = t0a_idx;
+    e0.t1 = t1b_idx;
+    e0.w0 = wt0_idx;
+    e0.w1 = wt1_idx;
+
+    e1->v0 = pidx;
+    e1->v1 = e->v1;
+    e1->t0 = t0b_idx;
+    e1->t1 = t1a_idx;
+    e1->w0 = wt0_idx;
+    e1->w1 = wt1_idx;
+
+    e2->v0 = pidx;
+    e2->v1 = wt0_idx;
+    e2->t0 = t0a_idx;
+    e2->t1 = t0b_idx;
+    e2->w0 = e->v0;
+    e2->w1 = e->v1;
+
+    e3->v0 = pidx;
+    e3->v1 = wt1_idx;
+    e3->t0 = t1a_idx;
+    e3->t1 = t1b_idx;
+    e3->w0 = e->v0;
+    e3->w1 = e->v1;
+
+    t0a.v0 = pidx;
+    t0a.v1 = e->v0;
+    t0a.v2 = wt0_idx;
+    t0a.e0 = e0_idx;
+    t0a.e1 = q0_idx;
+    t0a.e2 = e2_idx;
+
+    t0b->v0 = pidx;
+    t0b->v1 = wt0_idx;
+    t0b->v2 = e->v1;
+    t0b->e0 = e2_idx;
+    t0b->e1 = q1_idx;
+    t0b->e2 = e1_idx;
+
+    t1a.v0 = pidx;
+    t1a.v1 = e->v1;
+    t1a.v2 = wt1_idx;
+    t1a.e0 = e1_idx;
+    t1a.e1 = q2_idx;
+    t1a.e2 = e3_idx;
+
+    t1b->v0 = pidx;
+    t1b->v1 = wt1_idx;
+    t1b->v2 = e->v0;
+    t1b->e0 = e3_idx;
+    t1b->e1 = q3_idx;
+    t1b->e2 = e0_idx;
+
+    // Update the edges of the quadrilateral (e->v0, wt0_idx, e->v2, wt1_idx): their adjacent triangles and opposite vertices
+    replace_adjacent_triangle(q0, e->t0, t0a_idx);
+    replace_opposing_vertex(q0, e->v1, pidx);
+
+    replace_adjacent_triangle(q1, e->t0, t0b_idx);
+    replace_opposing_vertex(q1, e->v0, pidx);
+
+    replace_adjacent_triangle(q2, e->t1, t1a_idx);
+    replace_opposing_vertex(q2, e->v0, pidx);
+
+    replace_adjacent_triangle(q3, e->t1, t1b_idx);
+    replace_opposing_vertex(q3, e->v1, pidx);
+
+    // Overwrite old triangles and edges
+    *t0 = t0a;
+    *t1 = t1a;
+    *e = e0;
+
+    // Check Delaunay condition for all affected edges
+    const size_t edges_to_check[8] = { e0_idx, e1_idx, e2_idx, e3_idx,
+                                       q0_idx, q1_idx, q2_idx, q3_idx };
+    for (size_t i = 0; i < 8; i++)
+        test_and_swap_edge(tri, edges_to_check[i], SKRY_EMPTY, SKRY_EMPTY);
+}
+
+/// Checks if point 'p' belong to the line specified by 'v0', 'v1'
+static
+int point_belongs_to_line(const struct SKRY_point *p,
+                          const struct SKRY_point *v0,
+                          const struct SKRY_point *v1)
+{
+    return 0 == -v1->x*v0->y + p->x*v0->y +
+                 v0->x*v1->y - p->x*v1->y -
+                 v0->x*p->y + v1->x*p->y;
+}
+
 /** Finds Delaunay triangulation for the specified point set; also adds (at the end
     of points' list) three additional points for the initial triangle which covers
     the whole set and 'envelope'. Returns null if out of memory. */
 SKRY_Triangulation *SKRY_find_delaunay_triangulation(
-                size_t num_points, struct SKRY_point points[],
-                /// Must be big enough to cover the whole set of 'points'
-                struct SKRY_rect envelope)
+        size_t num_points,
+        /// All points have to be different
+        const struct SKRY_point points[],
+        /// Must be big enough to cover the whole set of 'points'
+        struct SKRY_rect envelope)
 {
     SKRY_Triangulation *tri = malloc(sizeof(*tri));
     if (!tri)
@@ -414,11 +750,11 @@ SKRY_Triangulation *SKRY_find_delaunay_triangulation(
     all0->x = envelope.x - 15*envelope.height/10 - 16;
     all0->y = envelope.y - envelope.height/10 - 16;
 
-    all1->x = envelope.x + envelope.width/2;
-    all1->y = envelope.y + envelope.height + 15*envelope.width/10 + 16;
+    all1->x = envelope.x + envelope.width + 15*envelope.height/10 + 16;
+    all1->y = all0->y;
 
-    all2->x = envelope.x + envelope.width + 15*envelope.height/10 + 16;
-    all2->y = all0->y;
+    all2->x = envelope.x + envelope.width/2;
+    all2->y = envelope.y + envelope.height + 15*envelope.width/10 + 16;
 
     // Initial triangle's edges
     LOG_MSG(SKRY_LOG_TRIANGULATION, "Added external vertex %zu = (%d, %d).", num_points + 0, all0->x, all0->y);
@@ -444,6 +780,12 @@ SKRY_Triangulation *SKRY_find_delaunay_triangulation(
         ((struct SKRY_triangle) { .v0 = num_points + 0, .v1 = num_points + 1, .v2 = num_points + 2,
                                   .e0 = 0, .e1 = 1, .e2 = 2 }));
 
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Added tri %zu: (%zu, %zu, %zu).",
+            DA_SIZE(tri->triangles) - 1,
+            DA_LAST(tri->triangles).v0,
+            DA_LAST(tri->triangles).v1,
+            DA_LAST(tri->triangles).v2);
+
     // Process subsequent points and incrementally refresh the triangulation
 
     for (size_t pidx = 0; pidx < num_points; pidx++)
@@ -459,87 +801,31 @@ SKRY_Triangulation *SKRY_find_delaunay_triangulation(
 
         assert(tidx != SKRY_EMPTY); // Will never happen, unless 'envelope' does not contain all 'points'
 
-        // 2) Subdivide 't' into 3 sub-triangles 'tsub0', 'tsub1', 'tsub3' using 'pidx'
-        //
-        //    The order of existing triangles has to be preserved (they are referenced by the existing edges),
-        //    so replace 't' by 'tsub0' and add 'tsub1' and 'tsub2' at the triangle array's end.
+        const struct SKRY_triangle *t = &tri->triangles.data[tidx];
 
-        struct SKRY_triangle tsub0;
-        size_t tsub0idx = tidx;
+        // All items in 'points' have to be different
+        assert(!POINTS_EQ(tri->vertices[t->v0], points[pidx]) ||
+               !POINTS_EQ(tri->vertices[t->v1], points[pidx]) ||
+               !POINTS_EQ(tri->vertices[t->v2], points[pidx]));
 
-        // Add 2 new triangles
+        // Check if point 'pidx' belongs to one of triangle 'tidx's edges
+        size_t insertion_edge = SKRY_EMPTY;
+        const size_t edges_to_check[3] = { t->e0, t->e1, t->e2 };
 
-        DA_SET_SIZE(tri->triangles, DA_SIZE(tri->triangles) + 2);
-        size_t tsub1idx = DA_SIZE(tri->triangles) - 2;
-        size_t tsub2idx = DA_SIZE(tri->triangles) - 1;
 
-        struct SKRY_triangle *tsub1 = &tri->triangles.data[tsub1idx],
-                               *tsub2 = &tri->triangles.data[tsub2idx];
+        for (int i = 0; i < 3; i++)
+            if (point_belongs_to_line(&points[pidx],
+                                      &tri->vertices[tri->edges.data[edges_to_check[i]].v0],
+                                      &tri->vertices[tri->edges.data[edges_to_check[i]].v1]))
+            {
+                insertion_edge = edges_to_check[i];
+                break;
+            }
 
-        struct SKRY_triangle *t = &tri->triangles.data[tidx];
-
-        // Add 3 new edges 'enew0', 'enew1', 'enew2' which connect 't.v0', 't.v1', 't.v2' with 'pidx'
-
-        DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v0, .v1 = pidx, .t0 = tsub0idx, .t1 = tsub2idx, .w0 = t->v1, .w1 = t->v2 }));
-        size_t enew0 = DA_SIZE(tri->edges) - 1;
-
-        DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v1, .v1 = pidx, .t0 = tsub0idx, .t1 = tsub1idx, .w0 = t->v0, .w1 = t->v2 }));
-        size_t enew1 = DA_SIZE(tri->edges) - 1;
-
-        DA_APPEND(tri->edges, ((struct SKRY_edge) { .v0 = t->v2, .v1 = pidx, .t0 = tsub1idx, .t1 = tsub2idx, .w0 = t->v1, .w1 = t->v0 }));
-        size_t enew2 = DA_SIZE(tri->edges) - 1;
-
-        // Fill the new triangles' data
-
-        tsub0.v0 = pidx;
-        tsub0.v1 = t->v0;
-        tsub0.v2 = t->v1;
-        tsub0.e0 = enew0;
-        tsub0.e1 = t->e0;
-        tsub0.e2 = enew1;
-
-        tsub1->v0 = pidx;
-        tsub1->v1 = t->v1;
-        tsub1->v2 = t->v2;
-        tsub1->e0 = enew1;
-        tsub1->e1 = t->e1;
-        tsub1->e2 = enew2;
-
-        tsub2->v0 = pidx;
-        tsub2->v1 = t->v2;
-        tsub2->v2 = t->v0;
-        tsub2->e0 = enew2;
-        tsub2->e1 = t->e2;
-        tsub2->e2 = enew0;
-
-        // Update adjacent triangle and opposing vertex data for 't's edges
-
-        struct SKRY_edge *tri_edges = tri->edges.data;
-
-        replace_opposing_vertex(&tri_edges[t->e0], t->v2, pidx);
-        replace_adjacent_triangle(&tri_edges[t->e0], tidx, tsub0idx);
-
-        replace_opposing_vertex(&tri_edges[t->e1], t->v0, pidx);
-        replace_adjacent_triangle(&tri_edges[t->e1], tidx, tsub1idx);
-
-        replace_opposing_vertex(&tri_edges[t->e2], t->v1, pidx);
-        replace_adjacent_triangle(&tri_edges[t->e2], tidx, tsub2idx);
-
-        // Keep note of the 't's edges for the subsequent Delaunay check
-        size_t te0 = t->e0, te1 = t->e1, te2 = t->e2;
-
-        // Original triangle 't' is no longer needed, replace it with 'tsub0'
-        *t = tsub0;
-
-        // 3) Check Delaunay condition for the old 't's edges and swap them if necessary.
-        //    Also recursively check any edges affected by the swap.
-
-        LOG_MSG(SKRY_LOG_TRIANGULATION, "Inserted point %zu (%d, %d) into triangle %zu.",
-                pidx, tri->vertices[pidx].x, tri->vertices[pidx].y, tidx);
-
-        test_and_swap_edge(tri, te0, enew0, enew1);
-        test_and_swap_edge(tri, te1, enew1, enew2);
-        test_and_swap_edge(tri, te2, enew2, enew0);
+        if (insertion_edge != SKRY_EMPTY)
+            add_point_on_edge(tri, pidx, insertion_edge);
+        else
+            add_point_inside_triangle(tri, pidx, tidx);
     }
 
     return tri;

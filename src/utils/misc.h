@@ -29,7 +29,6 @@ File description:
 
 #define WHITE_8bit 0xFF
 
-
 /// Returns 1 on equality
 int compare_extension(const char *file_name,
                       const char *extension ///< lowercase without '.'
