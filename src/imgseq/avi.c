@@ -201,7 +201,7 @@ enum SKRY_result AVI_get_curr_img_metadata(const struct SKRY_img_sequence *img_s
 {
     if (width) *width = AVI_DATA(img_seq->data)->width;
     if (height) *height = AVI_DATA(img_seq->data)->height;
-    if (pix_fmt) *pix_fmt = AVI_DATA(img_seq->data)->pix_fmt;
+    if (pix_fmt) *pix_fmt = AVI_to_SKRY_pix_fmt[AVI_DATA(img_seq->data)->pix_fmt];
     return SKRY_SUCCESS;
 }
 
