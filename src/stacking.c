@@ -165,6 +165,7 @@ triangle_point_list_t rasterize_triangle(
 #define FAIL_ON_NULL(ptr)                         \
     if (!(ptr))                                   \
     {                                             \
+        free(pixel_occupied);                     \
         SKRY_free_stacking(stacking);             \
         if (result) *result = SKRY_OUT_OF_MEMORY; \
         return 0;                                 \
@@ -176,6 +177,8 @@ SKRY_Stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align,
                                   /// If not null, receives operation result
                                   enum SKRY_result *result)
 {
+    uint8_t *pixel_occupied = NULL;
+
     SKRY_ImgSequence *img_seq = SKRY_get_img_seq(SKRY_get_img_align(SKRY_get_qual_est(ref_pt_align)));
     SKRY_seek_start(img_seq);
 
@@ -199,7 +202,7 @@ SKRY_Stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align,
 
     const struct SKRY_triangle *triangulation_tris = SKRY_get_triangles(triangulation);
     struct SKRY_rect intersection = SKRY_get_intersection(SKRY_get_img_align(SKRY_get_qual_est(stacking->ref_pt_align)));
-    uint8_t *pixel_occupied = malloc(intersection.width * intersection.height * sizeof(*pixel_occupied));
+    pixel_occupied = malloc(intersection.width * intersection.height * sizeof(*pixel_occupied));
     FAIL_ON_NULL(pixel_occupied);
     memset(pixel_occupied, 0, intersection.width * intersection.height);
     for (size_t i = 0; i < stacking->num_triangles; i++)
@@ -262,6 +265,8 @@ SKRY_Stacking *SKRY_init_stacking(const SKRY_RefPtAlignment *ref_pt_align,
                     line[x] = max_val/line[x];
         }
     }
+
+    free(pixel_occupied);
 
     if (result) *result = SKRY_SUCCESS;
     return stacking;
