@@ -313,14 +313,63 @@ void SKRY_resize_and_translate(
 {
     assert(SKRY_get_img_pix_fmt(src_img) == SKRY_get_img_pix_fmt(dest_img));
 
+    const unsigned src_w = SKRY_get_img_width(src_img),
+                   src_h = SKRY_get_img_height(src_img),
+                   dest_w = SKRY_get_img_width(dest_img),
+                   dest_h = SKRY_get_img_height(dest_img);
+
     size_t bytes_per_pixel = BYTES_PER_PIXEL[SKRY_get_img_pix_fmt(src_img)];
 
-    // start and end (inclusive) coordinates to fill in the output image
-    int dest_x_start = (dest_x_ofs < 0) ? 0 : dest_x_ofs;
-    int dest_y_start = (dest_y_ofs < 0) ? 0 : dest_y_ofs;
+    // Start and end (inclusive) coordinates to fill in the output image
+    int dest_x_start = dest_x_ofs;
+    int dest_x_end = dest_x_start + width - 1;
 
-    int dest_x_end = SKRY_MIN(dest_x_ofs + src_x_min + (int)width - 1, (int)SKRY_get_img_width(dest_img)-1);
-    int dest_y_end = SKRY_MIN(dest_y_ofs + src_y_min + (int)height - 1, (int)SKRY_get_img_height(dest_img)-1);
+    int dest_y_start = dest_y_ofs;
+    int dest_y_end = dest_y_start + height - 1;
+
+    // Actual source coordinates to use
+    int src_x_start = src_x_min;
+    int src_y_start = src_y_min;
+
+    // Perform any necessary cropping
+
+    // Source image, left and top
+    if (src_x_min < 0)
+    {
+        src_x_start -= src_x_min;
+        dest_x_start -= src_x_min;
+    }
+    if (src_y_min < 0)
+    {
+        src_y_start -= src_y_min;
+        dest_y_start -= src_y_min;
+    }
+
+    // Source image, right and bottom
+    if (src_x_min + width > src_w)
+        dest_x_end -= src_x_min + width - src_w;
+
+    if (src_y_min + height > src_h)
+        dest_y_end -= src_y_min + height - src_h;
+
+    // Destination image, left and top
+    if (dest_x_start < 0)
+    {
+        src_x_start -= dest_x_start;
+        dest_x_start = 0;
+    }
+    if (dest_y_start < 0)
+    {
+        src_y_start -= dest_y_start;
+        dest_y_start = 0;
+    }
+
+    // Destination image, right and bottom
+    if (dest_x_end >= (int)dest_w)
+        dest_x_end = dest_w - 1;
+    if (dest_y_end >= (int)dest_h)
+        dest_y_end = dest_h - 1;
+
 
     if (dest_y_end < dest_y_start || dest_x_end < dest_x_start)
     {
@@ -355,7 +404,7 @@ void SKRY_resize_and_translate(
     for (int y = dest_y_start; y <= dest_y_end; y++)
     {
         memcpy((uint8_t *)SKRY_get_line(dest_img, y) + dest_x_start * bytes_per_pixel,
-               (uint8_t *)SKRY_get_line(src_img, y - dest_y_ofs + src_y_min) + (dest_x_start - dest_x_ofs + src_x_min) * bytes_per_pixel,
+               (uint8_t *)SKRY_get_line(src_img, y - dest_y_start + src_y_start) + src_x_start * bytes_per_pixel,
                (dest_x_end - dest_x_start + 1) * bytes_per_pixel);
 
     }

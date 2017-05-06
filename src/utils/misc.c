@@ -238,7 +238,7 @@ int assess_gradients_for_block_matching(
                               pos.y - neighborhood_radius,
                               block_size,
                               block_size,
-                              0, 0, 0);
+                              0, 0, 1);
 
     // Blur to reduce noise impact
     SKRY_Image *block_blurred = box_blur_img(block, 1, 3);
