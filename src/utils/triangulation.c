@@ -562,6 +562,14 @@ void add_point_on_edge(SKRY_Triangulation *tri,
 
      */
 
+    // We subdivide the 2 triangles adjacent to 'e' into two new triangles each. Old triangles in the array
+    // will be reused, so make room for just 2 new ones.
+    DA_SET_SIZE(tri->triangles, DA_SIZE(tri->triangles) + 2);
+
+    // We subdivide 'e' into two edges at point 'pidx' and create 2 more edges connected to 'pidx'.
+    // The array element storing 'e' will be reused, so make room for just 3 new ones.
+    DA_SET_SIZE(tri->edges, DA_SIZE(tri->edges) + 3);
+
     struct SKRY_edge *e = &tri->edges.data[eidx];
     struct SKRY_triangle *t0 = &tri->triangles.data[e->t0],
                          *t1 = &tri->triangles.data[e->t1];
@@ -590,11 +598,6 @@ void add_point_on_edge(SKRY_Triangulation *tri,
                      *q2 = &tri->edges.data[q2_idx],
                      *q3 = &tri->edges.data[q3_idx];
 
-
-    // We subdivide the 2 triangles adjacent to 'e' into two new triangles each. Old triangles in the array
-    // will be reused, so make room for just 2 new ones.
-    DA_SET_SIZE(tri->triangles, DA_SIZE(tri->triangles) + 2);
-
     // 't0' gets subdivided into 't0a', 't0b'
     // 't0a' reuses the storage of 't0'
     size_t t0a_idx = e->t0;
@@ -606,11 +609,6 @@ void add_point_on_edge(SKRY_Triangulation *tri,
     size_t t1a_idx = e->t1;
     size_t t1b_idx = DA_SIZE(tri->triangles) - 1; // the 2nd of the newly allocated triangles
     struct SKRY_triangle t1a, *t1b = &tri->triangles.data[t1b_idx];
-
-
-    // We subdivide 'e' into two edges at point 'pidx' and create 2 more edges connected to 'pidx'.
-    // The array element storing 'e' will be reused, so make room for just 3 new ones.
-    DA_SET_SIZE(tri->edges, DA_SIZE(tri->edges) + 3);
 
     // Edge 'e' (of 'eidx') get subdivided into 'e0' and 'e1'. New edge 'e2' belongs to 't0',
     // new edge 'e3' belongs to 't1'.
