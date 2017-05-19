@@ -517,7 +517,7 @@ void add_point_on_edge(SKRY_Triangulation *tri,
     /*
         Starting configuration: (| = edge 'e')
 
-             v0
+             k0
             .|.
            . | .
          q0  |  .
@@ -529,7 +529,7 @@ void add_point_on_edge(SKRY_Triangulation *tri,
         q1   |   q2
           .  |  .
            . | .
-            v1
+            k1
 
 
         Point 'p' is inserted into edge 'e', which has adjacent triangles t0, t1
@@ -540,7 +540,7 @@ void add_point_on_edge(SKRY_Triangulation *tri,
         This creates two more edges e2, e3, which subdivide triangle t0 into triangles t0a/t0b
         and triangle t1 into t1a/t1b:
 
-             v0
+             k0
             .|.
            . | .
          q0  |  .
@@ -556,11 +556,14 @@ void add_point_on_edge(SKRY_Triangulation *tri,
         q1   e1  q2
           .  |  .
            . | .
-            v1
+            k1
 
         After subdivision, the Delaunay condition needs to be checked for edges e0..3, q0..3.
 
      */
+
+    LOG_MSG(SKRY_LOG_TRIANGULATION, "Inserting point %zu (%d, %d) into edge %zu.",
+            pidx, tri->vertices[pidx].x, tri->vertices[pidx].y, eidx);
 
     // We subdivide the 2 triangles adjacent to 'e' into two new triangles each. Old triangles in the array
     // will be reused, so make room for just 2 new ones.
@@ -587,11 +590,14 @@ void add_point_on_edge(SKRY_Triangulation *tri,
         wt1_idx = e->w0;
     }
 
-    // Edges of the quadrilateral (e->v0, wt0_idx, e->v2, wt1_idx);
-    // q0 contains (e->v0, wt0_idx); q1, q2, q3 are the subsequent edges in CCW order.
-    const size_t q0_idx = get_leading_edge_containing_vertex(t0, e->v0),
+    const size_t k0 = next_vertex(t1, wt1_idx);
+    const size_t k1 = next_vertex(t0, wt0_idx);
+
+    // Edges of the quadrilateral (k0, wt0_idx, k1, wt1_idx);
+    // q0 contains (k0, wt0_idx); q1, q2, q3 are the subsequent edges in CCW order.
+    const size_t q0_idx = get_leading_edge_containing_vertex(t0, k0),
                  q1_idx = get_leading_edge_containing_vertex(t0, wt0_idx),
-                 q2_idx = get_leading_edge_containing_vertex(t1, e->v1),
+                 q2_idx = get_leading_edge_containing_vertex(t1, k1),
                  q3_idx = get_leading_edge_containing_vertex(t1, wt1_idx);
     struct SKRY_edge *q0 = &tri->edges.data[q0_idx],
                      *q1 = &tri->edges.data[q1_idx],
@@ -610,7 +616,7 @@ void add_point_on_edge(SKRY_Triangulation *tri,
     size_t t1b_idx = DA_SIZE(tri->triangles) - 1; // the 2nd of the newly allocated triangles
     struct SKRY_triangle t1a, *t1b = &tri->triangles.data[t1b_idx];
 
-    // Edge 'e' (of 'eidx') get subdivided into 'e0' and 'e1'. New edge 'e2' belongs to 't0',
+    // Edge 'e' (of 'eidx') gets subdivided into 'e0' and 'e1'. New edge 'e2' belongs to 't0',
     // new edge 'e3' belongs to 't1'.
     const size_t num_edges = DA_SIZE(tri->edges);
     const size_t e0_idx = eidx,
@@ -623,14 +629,14 @@ void add_point_on_edge(SKRY_Triangulation *tri,
 
 
     e0.v0 = pidx;
-    e0.v1 = e->v0;
+    e0.v1 = k0;
     e0.t0 = t0a_idx;
     e0.t1 = t1b_idx;
     e0.w0 = wt0_idx;
     e0.w1 = wt1_idx;
 
     e1->v0 = pidx;
-    e1->v1 = e->v1;
+    e1->v1 = k1;
     e1->t0 = t0b_idx;
     e1->t1 = t1a_idx;
     e1->w0 = wt0_idx;
@@ -640,18 +646,18 @@ void add_point_on_edge(SKRY_Triangulation *tri,
     e2->v1 = wt0_idx;
     e2->t0 = t0a_idx;
     e2->t1 = t0b_idx;
-    e2->w0 = e->v0;
-    e2->w1 = e->v1;
+    e2->w0 = k0;
+    e2->w1 = k1;
 
     e3->v0 = pidx;
     e3->v1 = wt1_idx;
     e3->t0 = t1a_idx;
     e3->t1 = t1b_idx;
-    e3->w0 = e->v0;
-    e3->w1 = e->v1;
+    e3->w0 = k0;
+    e3->w1 = k1;
 
     t0a.v0 = pidx;
-    t0a.v1 = e->v0;
+    t0a.v1 = k0;
     t0a.v2 = wt0_idx;
     t0a.e0 = e0_idx;
     t0a.e1 = q0_idx;
@@ -659,13 +665,13 @@ void add_point_on_edge(SKRY_Triangulation *tri,
 
     t0b->v0 = pidx;
     t0b->v1 = wt0_idx;
-    t0b->v2 = e->v1;
+    t0b->v2 = k1;
     t0b->e0 = e2_idx;
     t0b->e1 = q1_idx;
     t0b->e2 = e1_idx;
 
     t1a.v0 = pidx;
-    t1a.v1 = e->v1;
+    t1a.v1 = k1;
     t1a.v2 = wt1_idx;
     t1a.e0 = e1_idx;
     t1a.e1 = q2_idx;
@@ -673,23 +679,23 @@ void add_point_on_edge(SKRY_Triangulation *tri,
 
     t1b->v0 = pidx;
     t1b->v1 = wt1_idx;
-    t1b->v2 = e->v0;
+    t1b->v2 = k0;
     t1b->e0 = e3_idx;
     t1b->e1 = q3_idx;
     t1b->e2 = e0_idx;
 
     // Update the edges of the quadrilateral (e->v0, wt0_idx, e->v2, wt1_idx): their adjacent triangles and opposite vertices
     replace_adjacent_triangle(q0, e->t0, t0a_idx);
-    replace_opposing_vertex(q0, e->v1, pidx);
+    replace_opposing_vertex(q0, k1, pidx);
 
     replace_adjacent_triangle(q1, e->t0, t0b_idx);
-    replace_opposing_vertex(q1, e->v0, pidx);
+    replace_opposing_vertex(q1, k0, pidx);
 
     replace_adjacent_triangle(q2, e->t1, t1a_idx);
-    replace_opposing_vertex(q2, e->v0, pidx);
+    replace_opposing_vertex(q2, k0, pidx);
 
     replace_adjacent_triangle(q3, e->t1, t1b_idx);
-    replace_opposing_vertex(q3, e->v1, pidx);
+    replace_opposing_vertex(q3, k1, pidx);
 
     // Overwrite old triangles and edges
     *t0 = t0a;

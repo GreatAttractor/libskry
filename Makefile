@@ -13,7 +13,6 @@ CFLAGS = -c -O3 -ffast-math -std=c99 -I ./include \
          -D__USE_MINGW_ANSI_STDIO=1 \
          -Wno-parentheses -Wall -Wextra -Wstrict-prototypes -pedantic \
          -Wno-missing-field-initializers \
-         -Wno-logical-op-parentheses \
          -fopenmp
 
 # Cmdline option for CC to generate dependencies list to std. output
