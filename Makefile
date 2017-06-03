@@ -8,6 +8,18 @@
 # If Make cannot be used, simply compile all *.c files and link them into a library (e.g.: ar rcs libskry.a *.o)
 #
 
+#--------- Configuration -------------------
+
+# If set to 0, there is only limited AVI support (no extended/ODML headers);
+# libav is usually available as package `ffmpeg-devel`
+USE_LIBAV = 1
+
+# Needed if USE_LIBAV = 1
+LIBAV_INCLUDE_PATH = /usr/include/ffmpeg
+
+#-------------------------------------------
+
+
 CC = gcc
 CFLAGS = -c -O3 -ffast-math -std=c99 -I ./include \
          -D__USE_MINGW_ANSI_STDIO=1 \
@@ -50,7 +62,6 @@ SRC_FILES = img_align.c \
             image/bmp.c \
             image/image.c \
             image/tiff.c \
-            imgseq/avi.c \
             imgseq/image_list.c \
             imgseq/imgseq.c \
             imgseq/ser.c \
@@ -62,6 +73,14 @@ SRC_FILES = img_align.c \
             utils/match.c \
             utils/misc.c \
             utils/triangulation.c
+
+ifeq ($(USE_LIBAV),1)
+CFLAGS += -DUSE_LIBAV -I $(LIBAV_INCLUDE_PATH)
+SRC_FILES += imgseq/vid_libav.c
+else
+SRC_FILES += imgseq/avi.c
+endif
+
 
 #
 # Converts the specified path $(1) to the form:
@@ -98,7 +117,7 @@ $(BIN_DIR)/$(LIB_NAME): $(OBJECTS)
 # Creates a rule for building a .c file
 #
 # Parameters:
-#	$(1) - full path to .o file
+#   $(1) - full path to .o file
 #   $(2) - full path to .c file
 #   $(3) - additional compiler flags (may be empty)
 #

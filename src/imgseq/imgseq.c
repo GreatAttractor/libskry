@@ -174,15 +174,20 @@ SKRY_ImgSequence *SKRY_init_video_file(
     /// If not null, receives operation result
     enum SKRY_result *result)
 {
-    if (compare_extension(file_name, "avi"))
-        return init_AVI(file_name, img_pool, result);
-    else if (compare_extension(file_name, "ser"))
+    if (compare_extension(file_name, "ser"))
         return init_SER(file_name, img_pool, result);
+#if USE_LIBAV
+    else
+        return init_libav_video_file(file_name, img_pool, result);
+#else
+    else if (compare_extension(file_name, "avi"))
+        return init_AVI(file_name, img_pool, result);
     else
     {
         if (result) *result = SKRY_UNSUPPORTED_FILE_FORMAT;
         return 0;
     }
+#endif
 }
 
 /// Must be called after img_seq->num_images has been set

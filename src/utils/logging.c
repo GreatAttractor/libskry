@@ -33,6 +33,7 @@ const char* pix_fmt_str[SKRY_NUM_PIX_FORMATS] =
     [SKRY_PIX_PAL8]    = "PIX_PAL8",
     [SKRY_PIX_MONO8]   = "PIX_MONO8",
     [SKRY_PIX_RGB8]    = "PIX_RGB8",
+    [SKRY_PIX_BGR8]    = "PIX_BGR8",
     [SKRY_PIX_BGRA8]   = "PIX_BGRA8",
 
     [SKRY_PIX_MONO16]  = "PIX_MONO16",
@@ -83,7 +84,12 @@ const char *error_messages[SKRY_RESULT_LAST] =
     [SKRY_AVI_UNSUPPORTED_FORMAT]       = "Unsupported AVI DIB format",
     [SKRY_INVALID_IMG_DIMENSIONS]       = "Invalid image dimensions",
     [SKRY_SER_MALFORMED_FILE]           = "Malformed SER file",
-    [SKRY_SER_UNSUPPORTED_FORMAT]       = "Unsupported SER format"
+    [SKRY_SER_UNSUPPORTED_FORMAT]       = "Unsupported SER format",
+
+    [SKRY_LIBAV_NO_VID_STREAM]          = "Video stream not found",
+    [SKRY_LIBAV_UNSUPPORTED_FORMAT]     = "Unsupported format",
+    [SKRY_LIBAV_DECODING_ERROR]         = "Decoding error",
+    [SKRY_LIBAV_INTERNAL_ERROR]         = "Internal libav error"
 };
 
 SKRY_log_callback_fn *g_log_msg_callback;

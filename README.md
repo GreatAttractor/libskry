@@ -37,6 +37,22 @@ If Make cannot be used, simply compile all `*.c` files and link them into a libr
 
 
 ----------------------------------------
+### 2.1. Using with *libav*
+
+If `USE_LIBAV=1` (required for full AVI support), programs linking with *libskry* must also link with *libav* (`-lavformat -lavcodec -lavutil`). The libraries are usually available as a package named `ffmpeg-devel` or similar. If not, they can be built from sources by running:
+
+```
+$ git clone https://git.ffmpeg.org/ffmpeg.git
+$ cd ffmpeg
+$ ./configure --disable-programs --enable-gray --disable-muxers --disable-demuxers --enable-demuxer=avi --disable-encoders --disable-decoders --enable-decoder=rawvideo --enable-decoder=bmp --disable-protocols --enable-protocol=file --disable-parsers --disable-devices --disable-hwaccels --disable-bsfs --disable-filters --disable-bzlib --disable-lzma --disable-schannel --disable-xlib --disable-zlib --disable-iconv
+$ make
+$ make install
+```
+
+Under MSYS2 (Windows), first install Git and Yasm: `pacman -S git yasm`, and pass an additional parameter to `./configure`: `--prefix=$MSYSTEM_PREFIX`.
+
+
+----------------------------------------
 ## 3. Input/output formats support
 
 Supported input formats:
@@ -51,7 +67,9 @@ Supported output formats:
 - BMP: 8- and 24-bit uncompressed
 - TIFF: 8- and 16-bit per channel mono or RGB uncompressed
 
-AVI files up to 2 GiB are supported. In case of 64-bit builds of libskry, there are no size limits for the remaining formats (other than the available memory). The user can choose to treat mono videos as raw color (enables demosaicing).
+In case of 64-bit builds of libskry, there are no size limits for the input video/image size (other than the available memory). The user can choose to treat mono videos as raw color (enables demosaicing).
+
+If using *libav* is disabled, there is only limited AVI support (no extended or ODML AVI headers).
 
 ----------------------------------------
 ## 4. Principles of operation

@@ -24,10 +24,21 @@ File description:
 #ifndef LIBSKRY_VIDEO_HEADER
 #define LIBSKRY_VIDEO_HEADER
 
+#if USE_LIBAV
+
+SKRY_ImgSequence *init_libav_video_file(const char *file_name,
+                                        SKRY_ImagePool *img_pool, ///< May be null
+                                        /// If not null, receives operation result
+                                        enum SKRY_result *result);
+
+#else
+
 struct SKRY_img_sequence *init_AVI(const char *file_name,
                                    SKRY_ImagePool *img_pool,
                                    /// If not null, receives operation result
                                    enum SKRY_result *result);
+
+#endif
 
 struct SKRY_img_sequence *init_SER(const char *file_name,
                                    SKRY_ImagePool *img_pool,

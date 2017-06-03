@@ -21,15 +21,24 @@ File description:
     Library initialization/deinitialization functions.
 */
 
+#if USE_LIBAV
+#include <libavformat/avformat.h>
+#endif
 #include <skry/skry.h>
 
 /// Must be called before using libskry
 enum SKRY_result SKRY_initialize(void)
 {
+#if USE_LIBAV
+    av_register_all();
+#endif
     return SKRY_SUCCESS;
 }
 
 /// Must be called after finished using libskry
 void SKRY_deinitialize(void)
 {
+#if USE_LIBAV
+    //
+#endif
 }

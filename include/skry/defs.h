@@ -39,15 +39,16 @@ File description:
 enum
 {
     SKRY_LOG_QUIET            = 0U,
-    SKRY_LOG_IMAGE            = 1U << 1,
-    SKRY_LOG_REF_PT_ALIGNMENT = 1U << 2,
-    SKRY_LOG_STACKING         = 1U << 3,
-    SKRY_LOG_TRIANGULATION    = 1U << 4,
-    SKRY_LOG_QUALITY          = 1U << 5,
-    SKRY_LOG_AVI              = 1U << 6,
-    SKRY_LOG_IMG_ALIGNMENT    = 1U << 7,
-    SKRY_LOG_SER              = 1U << 8,
-    SKRY_LOG_IMG_POOL         = 1U << 9,
+    SKRY_LOG_IMAGE            = 1U <<  1,
+    SKRY_LOG_REF_PT_ALIGNMENT = 1U <<  2,
+    SKRY_LOG_STACKING         = 1U <<  3,
+    SKRY_LOG_TRIANGULATION    = 1U <<  4,
+    SKRY_LOG_QUALITY          = 1U <<  5,
+    SKRY_LOG_AVI              = 1U <<  6,
+    SKRY_LOG_IMG_ALIGNMENT    = 1U <<  7,
+    SKRY_LOG_SER              = 1U <<  8,
+    SKRY_LOG_IMG_POOL         = 1U <<  9,
+    SKRY_LOG_LIBAV_VIDEO      = 1U << 10
 };
 
 #define SKRY_LOG_ALL UINT_MAX
@@ -59,6 +60,7 @@ enum SKRY_pixel_format
     SKRY_PIX_PAL8,  ///< 8 bits per pixel, values from a 256-entry palette
     SKRY_PIX_MONO8,
     SKRY_PIX_RGB8,  ///< LSB = R, MSB = B
+    SKRY_PIX_BGR8, ///< LSB = B, MSB = R
     SKRY_PIX_BGRA8, ///< LSB = B, MSB = A or unused
 
     SKRY_PIX_MONO16,
@@ -150,6 +152,11 @@ enum SKRY_result
     SKRY_SER_MALFORMED_FILE,
     SKRY_SER_UNSUPPORTED_FORMAT,
 
+    SKRY_LIBAV_NO_VID_STREAM,
+    SKRY_LIBAV_UNSUPPORTED_FORMAT,
+    SKRY_LIBAV_DECODING_ERROR,
+    SKRY_LIBAV_INTERNAL_ERROR,
+
     SKRY_RESULT_LAST
 };
 
@@ -169,8 +176,9 @@ enum SKRY_output_format
 enum SKRY_img_sequence_type
 {
     SKRY_IMG_SEQ_IMAGE_FILES,
+    SKRY_IMG_SEQ_LIBAV_VIDEO,
     SKRY_IMG_SEQ_AVI,
-    SKRY_IMG_SEQ_SER
+    SKRY_IMG_SEQ_SER,
 };
 
 enum SKRY_img_alignment_method
