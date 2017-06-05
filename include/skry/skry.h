@@ -73,9 +73,9 @@ extern "C" {
 
 
 #define LIBSKRY_MAJOR_VERSION    0
-#define LIBSKRY_MINOR_VERSION    2
+#define LIBSKRY_MINOR_VERSION    3
 #define LIBSKRY_SUBMINOR_VERSION 0
-#define LIBSKRY_RELEASE_DATE     "2016-12-14"
+#define LIBSKRY_RELEASE_DATE     "2017-06-05"
 
 /// Must be called before using libskry
 enum SKRY_result SKRY_initialize(void);

@@ -2,9 +2,9 @@
 
 ## Lucky imaging implementation for the Stackistry project
 
-Copyright (C) 2016 Filip Szczerek (ga.software@yahoo.com)
+Copyright (C) 2016, 2017 Filip Szczerek (ga.software@yahoo.com)
 
-version 0.2.0 (2016-12-14)
+version 0.3.0 (2017-06-05)
 
 *This library comes with ABSOLUTELY NO WARRANTY. This is free software, licensed under GNU General Public License v3 or any later version and you are welcome to redistribute it under certain conditions. See the LICENSE file for details.*
 
@@ -70,6 +70,7 @@ Supported output formats:
 In case of 64-bit builds of libskry, there are no size limits for the input video/image size (other than the available memory). The user can choose to treat mono videos as raw color (enables demosaicing).
 
 If using *libav* is disabled, there is only limited AVI support (no extended or ODML AVI headers).
+
 
 ----------------------------------------
 ## 4. Principles of operation
@@ -165,6 +166,12 @@ else
 ## 6. Change log
 
 ```
+0.3.0 (2017-06-05)
+  New features:
+    - Better AVI support via libav
+  Bug fixes:
+    - Fixed crashes during triangulation
+
 0.2.0 (2016-12-14)
   New features:
     - Image alignment using the intensity centroid (useful for planets)

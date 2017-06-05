@@ -8,6 +8,8 @@
     the necessary libraries. E.g. in case of GCC on Linux, use:
 
         g++ -std=c++11 example1.cpp -lskry -lgomp -I ../include -L ../bin
+        
+    If USE_LIBAV is enabled in the Makefile, add: -lavformat -lavcodec -lavutil
 */
 
 #include <iostream>

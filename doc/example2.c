@@ -6,6 +6,8 @@
     the necessary libraries. E.g. in case of GCC on Linux, use:
 
         gcc -std=c99 example2.c -lskry -lgomp -lm -L ../bin -I ../include
+        
+    If USE_LIBAV is enabled in the Makefile, add: -lavformat -lavcodec -lavutil
 */
 
 // Needed for MinGW, so that is uses its own string formatting functions.

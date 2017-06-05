@@ -1,6 +1,6 @@
 /*
 libskry - astronomical image stacking
-Copyright (C) 2016 Filip Szczerek <ga.software@yahoo.com>
+Copyright (C) 2016, 2017 Filip Szczerek <ga.software@yahoo.com>
 
 This file is part of libskry.
 
