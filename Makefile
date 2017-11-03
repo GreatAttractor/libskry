@@ -14,7 +14,7 @@
 # libav is usually available as package `ffmpeg-devel`
 USE_LIBAV = 1
 
-# Needed if USE_LIBAV = 1
+# Needed if USE_LIBAV = 1; usually can be obtained by running: pkg-config libavformat --cflags
 LIBAV_INCLUDE_PATH = /usr/include/ffmpeg
 
 #-------------------------------------------
