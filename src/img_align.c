@@ -321,8 +321,8 @@ struct SKRY_point determine_img_offset_using_anchors(SKRY_ImgAlignment *img_algn
             SKRY_resize_and_translate(img, new_anchor->ref_block,
                                       new_anchor->pos.x - img_algn->block_radius,
                                       new_anchor->pos.y - img_algn->block_radius,
-                                      img_algn->block_radius,
-                                      img_algn->block_radius,
+                                      SKRY_get_img_width(new_anchor->ref_block),
+                                      SKRY_get_img_height(new_anchor->ref_block),
                                       0, 0, 0);
             new_anchor->ref_block_qual = estimate_quality(SKRY_get_line(new_anchor->ref_block, 0),
                                                           SKRY_get_img_width(new_anchor->ref_block),
