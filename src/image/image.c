@@ -646,365 +646,441 @@ void SKRY_convert_pix_fmt_of_subimage_into(
     ptrdiff_t in_ptr_step = BYTES_PER_PIXEL[src_pix_fmt],
               out_ptr_step = BYTES_PER_PIXEL[dest_pix_fmt];
 
+    // Executes 'operations' for the whole line
+    #define CONVERT_LINE(operations)         \
+        for (unsigned x = 0; x < width; x++) \
+        {                                    \
+            operations                       \
+                                             \
+            in_ptr += in_ptr_step;           \
+            out_ptr += out_ptr_step;         \
+        }                                    \
+
     for (unsigned y = 0; y < height; y++)
     {
-        uint8_t * restrict in_ptr = (uint8_t *)SKRY_get_line(src_img, y + src_pos.y) + src_pos.x * BYTES_PER_PIXEL[src_pix_fmt];
-        uint8_t * restrict out_ptr = (uint8_t *)SKRY_get_line(dest_img, y + dest_pos.y) + dest_pos.x * BYTES_PER_PIXEL[dest_pix_fmt];
+        uint8_t* restrict in_ptr = (uint8_t *)SKRY_get_line(src_img, y + src_pos.y) + src_pos.x * BYTES_PER_PIXEL[src_pix_fmt];
+        uint8_t* restrict out_ptr = (uint8_t *)SKRY_get_line(dest_img, y + dest_pos.y) + dest_pos.x * BYTES_PER_PIXEL[dest_pix_fmt];
 
-        for (unsigned x = 0; x < width; x++)
+        if (src_pix_fmt == SKRY_PIX_MONO8)
         {
-            if (src_pix_fmt == SKRY_PIX_MONO8)
+            #define src  ((*in_ptr))
+            switch (dest_pix_fmt)
             {
-                uint8_t src = *in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)src << 8; break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = src * 1.0f/0xFF; break;
-                case SKRY_PIX_MONO64F: *(double *)out_ptr = src * 1.0/0xFF; break;
-                case SKRY_PIX_RGB32F:
-                    ((float *)out_ptr)[0] =
-                        ((float *)out_ptr)[1] =
-                        ((float *)out_ptr)[2] = src * 1.0f/0xFF;
-                    break;
-                case SKRY_PIX_RGB64F:
-                    ((double *)out_ptr)[0] =
-                        ((double *)out_ptr)[1] =
-                        ((double *)out_ptr)[2] = src * 1.0/0xFF;
-                    break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)src << 8; ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = src * 1.0f/0xFF; ); break;
+            case SKRY_PIX_MONO64F: CONVERT_LINE( *(double *)out_ptr = src * 1.0/0xFF; ); break;
+            case SKRY_PIX_RGB32F:
+                CONVERT_LINE( ((float *)out_ptr)[0] =
+                                ((float *)out_ptr)[1] =
+                                ((float *)out_ptr)[2] = src * 1.0f/0xFF;
+                );
+                break;
+            case SKRY_PIX_RGB64F:
+                CONVERT_LINE(((double *)out_ptr)[0] =
+                    ((double *)out_ptr)[1] =
+                    ((double *)out_ptr)[2] = src * 1.0/0xFF;
+                );
+                break;
 
-                case SKRY_PIX_BGRA8:
-                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8:     // intentional fall-through
-                case SKRY_PIX_BGR8:
-                    out_ptr[0] = out_ptr[1] = out_ptr[2] = src;
-                    break;
+            case SKRY_PIX_BGRA8:
+                CONVERT_LINE( out_ptr[3] = 0xFF; out_ptr[0] = out_ptr[1] = out_ptr[2] = src; ); break;
+            case SKRY_PIX_RGB8:     // intentional fall-through
+            case SKRY_PIX_BGR8:
+                CONVERT_LINE( out_ptr[0] = out_ptr[1] = out_ptr[2] = src; );
+                break;
 
-                case SKRY_PIX_RGB16:
-                    ((uint16_t *)out_ptr)[0] =
-                        ((uint16_t *)out_ptr)[1] =
-                        ((uint16_t *)out_ptr)[2] = (uint16_t)src << 8;
-                    break;
-                default:
-                    break;
-                }
+            case SKRY_PIX_RGB16:
+                CONVERT_LINE( ((uint16_t *)out_ptr)[0] =
+                                ((uint16_t *)out_ptr)[1] =
+                                ((uint16_t *)out_ptr)[2] = (uint16_t)src << 8;
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_MONO16)
+            #undef src
+        }
+        else if (src_pix_fmt == SKRY_PIX_MONO16)
+        {
+            #define src  (*(uint16_t *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                uint16_t src = *(uint16_t *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(src >> 8); break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = src * 1.0f/0xFFFF; break;
-                case SKRY_PIX_RGB32F:
-                    ((float *)out_ptr)[0] =
-                        ((float *)out_ptr)[1] =
-                        ((float *)out_ptr)[2] = src * 1.0f/0xFFFF;
-                    break;
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(src >> 8); ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = src * 1.0f/0xFFFF; ); break;
+            case SKRY_PIX_RGB32F:
+                CONVERT_LINE( ((float *)out_ptr)[0] =
+                                ((float *)out_ptr)[1] =
+                                ((float *)out_ptr)[2] = src * 1.0f/0xFFFF;
+                );
+                break;
 
-                case SKRY_PIX_BGRA8:
-                    out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8:    // intentional fall-through
-                case SKRY_PIX_BGR8:
-                    out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src >> 8);
-                    break;
+            case SKRY_PIX_BGRA8: CONVERT_LINE( out_ptr[3] = 0xFF; out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src >> 8); ); break;
+            case SKRY_PIX_RGB8:    // intentional fall-through
+            case SKRY_PIX_BGR8:
+                CONVERT_LINE( out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src >> 8); );
+                break;
 
-                case SKRY_PIX_RGB16:
-                    ((uint16_t *)out_ptr)[0] =
-                        ((uint16_t *)out_ptr)[1] =
-                        ((uint16_t *)out_ptr)[2] = src;
-                    break;
-                case SKRY_PIX_MONO64F: *(double *)out_ptr = src * 1.0/0xFFFF; break;
-                case SKRY_PIX_RGB64F:
-                    ((double *)out_ptr)[0] =
-                        ((double *)out_ptr)[1] =
-                        ((double *)out_ptr)[2] = src * 1.0/0xFFFF;
-                    break;
-                default:
-                    break;
-                }
+            case SKRY_PIX_RGB16:
+                CONVERT_LINE( ((uint16_t *)out_ptr)[0] =
+                                ((uint16_t *)out_ptr)[1] =
+                                ((uint16_t *)out_ptr)[2] = src;
+                );
+                break;
+            case SKRY_PIX_MONO64F: CONVERT_LINE( *(double *)out_ptr = src * 1.0/0xFFFF; ); break;
+            case SKRY_PIX_RGB64F:
+                CONVERT_LINE( ((double *)out_ptr)[0] =
+                                ((double *)out_ptr)[1] =
+                                ((double *)out_ptr)[2] = src * 1.0/0xFFFF;
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_MONO32F)
+            #undef src
+        }
+        else if (src_pix_fmt == SKRY_PIX_MONO32F)
+        {
+            #define src  (*(float *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                float src = *(float *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(src * 0xFF); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)(src * 0xFFFF); break;
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(src * 0xFF); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)(src * 0xFFFF); ); break;
 
-                case SKRY_PIX_BGRA8:
-                    out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8:    // intentional fall-through
-                case SKRY_PIX_BGR8:
-                    out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF);
-                    break;
+            case SKRY_PIX_BGRA8:
+                CONVERT_LINE( out_ptr[3] = 0xFF; out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF); ); break;
+            case SKRY_PIX_RGB8:    // intentional fall-through
+            case SKRY_PIX_BGR8:
+                CONVERT_LINE( out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF); );
+                break;
 
-                case SKRY_PIX_RGB16:
-                    ((uint16_t *)out_ptr)[0] =
-                        ((uint16_t *)out_ptr)[1] =
-                        ((uint16_t *)out_ptr)[2] = (uint16_t)(src * 0xFFFF); break;
-                case SKRY_PIX_RGB32F:
-                    ((float *)out_ptr)[0] =
-                        ((float *)out_ptr)[1] =
-                        ((float *)out_ptr)[2] = src;
-                    break;
-                case SKRY_PIX_MONO64F:
-                    *(double *)out_ptr = src; break;
-                case SKRY_PIX_RGB64F:
-                    ((double *)out_ptr)[0] =
-                        ((double *)out_ptr)[1] =
-                        ((double *)out_ptr)[2] = src;
-                    break;
-                default:
-                    break;
-                }
+            case SKRY_PIX_RGB16:
+                CONVERT_LINE( ((uint16_t *)out_ptr)[0] =
+                                ((uint16_t *)out_ptr)[1] =
+                                ((uint16_t *)out_ptr)[2] = (uint16_t)(src * 0xFFFF);
+                );
+                break;
+            case SKRY_PIX_RGB32F:
+                CONVERT_LINE( ((float *)out_ptr)[0] =
+                                ((float *)out_ptr)[1] =
+                                ((float *)out_ptr)[2] = src;
+                );
+                break;
+            case SKRY_PIX_MONO64F:
+                CONVERT_LINE( *(double *)out_ptr = src; ); break;
+            case SKRY_PIX_RGB64F:
+                CONVERT_LINE( ((double *)out_ptr)[0] =
+                                ((double *)out_ptr)[1] =
+                                ((double *)out_ptr)[2] = src;
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_MONO64F)
+            #undef src
+        }
+        else if (src_pix_fmt == SKRY_PIX_MONO64F)
+        {
+            #define src  (*(double *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                double src = *(double *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(src * 0xFF); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)(src * 0xFFFF); break;
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(src * 0xFF); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)(src * 0xFFFF); ); break;
 
-                case SKRY_PIX_BGRA8:
-                    out_ptr[3] = 0xFF;
-                case SKRY_PIX_RGB8:   // intentional fall-through
-                case SKRY_PIX_BGR8:
-                    out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF);
-                    break;
+            case SKRY_PIX_BGRA8:
+                CONVERT_LINE( out_ptr[3] = 0xFF; out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF); ); break;
+            case SKRY_PIX_RGB8:   // intentional fall-through
+            case SKRY_PIX_BGR8:
+                CONVERT_LINE( out_ptr[0] = out_ptr[1] = out_ptr[2] = (uint8_t)(src * 0xFF); );
+                break;
 
-                case SKRY_PIX_RGB16:
-                    ((uint16_t *)out_ptr)[0] =
-                        ((uint16_t *)out_ptr)[1] =
-                        ((uint16_t *)out_ptr)[2] = (uint16_t)(src * 0xFFFF);
-                    break;
-                case SKRY_PIX_MONO32F:
-                    *(float *)out_ptr = src; break;
-                case SKRY_PIX_RGB32F:
-                    ((float *)out_ptr)[0] =
-                        ((float *)out_ptr)[1] =
-                        ((float *)out_ptr)[2] = src;
-                    break;
-                case SKRY_PIX_RGB64F:
-                    ((double *)out_ptr)[0] =
-                        ((double *)out_ptr)[1] =
-                        ((double *)out_ptr)[2] = src;
-                    break;
-                default:
-                    break;
-                }
+            case SKRY_PIX_RGB16:
+                CONVERT_LINE( ((uint16_t *)out_ptr)[0] =
+                                ((uint16_t *)out_ptr)[1] =
+                                ((uint16_t *)out_ptr)[2] = (uint16_t)(src * 0xFFFF);
+                );
+                break;
+            case SKRY_PIX_MONO32F:
+                CONVERT_LINE( *(float *)out_ptr = src; ); break;
+            case SKRY_PIX_RGB32F:
+                CONVERT_LINE( ((float *)out_ptr)[0] =
+                                ((float *)out_ptr)[1] =
+                                ((float *)out_ptr)[2] = src;
+                );
+                break;
+            case SKRY_PIX_RGB64F:
+                CONVERT_LINE( ((double *)out_ptr)[0] =
+                                ((double *)out_ptr)[1] =
+                                ((double *)out_ptr)[2] = src;
+                );
+                break;
+            default:
+                break;
             }
-            // When converting from a color format to mono, use sum (scaled) of all channels as the pixel brightness.
-            else if (src_pix_fmt == SKRY_PIX_PAL8)
+            #undef src
+        }
+        // When converting from a color format to mono, use sum (scaled) of all channels as the pixel brightness.
+        else if (src_pix_fmt == SKRY_PIX_PAL8)
+        {
+            #define src  (*in_ptr)
+            switch (dest_pix_fmt)
             {
-                uint8_t src = *in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2])/3); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = ((uint16_t)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2])/3; break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0f/(3*0xFF); break;
-                case SKRY_PIX_MONO64F: *(double *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0/(3*0xFF); break;
-                case SKRY_PIX_BGRA8:
-                    out_ptr[3] = 0xFF;
-                case SKRY_PIX_BGR8: // intentional fall-through
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2])/3); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = ((uint16_t)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2])/3; ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0f/(3*0xFF); ); break;
+            case SKRY_PIX_MONO64F: CONVERT_LINE( *(double *)out_ptr = ((int)src_palette.pal[3*src] + src_palette.pal[3*src+1] + src_palette.pal[3*src+2]) * 1.0/(3*0xFF); ); break;
+            case SKRY_PIX_BGRA8:
+                CONVERT_LINE( out_ptr[3] = 0xFF;
                     out_ptr[0] = src_palette.pal[3*src+2];
                     out_ptr[1] = src_palette.pal[3*src+1];
                     out_ptr[2] = src_palette.pal[3*src+0];
-                    break;
-                case SKRY_PIX_RGB8:
+                ); break;
+
+            case SKRY_PIX_BGR8: CONVERT_LINE(
+                    out_ptr[0] = src_palette.pal[3*src+2];
+                    out_ptr[1] = src_palette.pal[3*src+1];
+                    out_ptr[2] = src_palette.pal[3*src+0];
+                );
+                break;
+            case SKRY_PIX_RGB8: CONVERT_LINE(
                     out_ptr[0] = src_palette.pal[3*src+0];
                     out_ptr[1] = src_palette.pal[3*src+1];
                     out_ptr[2] = src_palette.pal[3*src+2];
-                    break;
-                case SKRY_PIX_RGB16:
+                );
+                break;
+            case SKRY_PIX_RGB16: CONVERT_LINE(
                     ((uint16_t *)out_ptr)[0] = (uint16_t)src_palette.pal[3*src] << 8;
                     ((uint16_t *)out_ptr)[1] = (uint16_t)src_palette.pal[3*src+1] << 8;
                     ((uint16_t *)out_ptr)[2] = (uint16_t)src_palette.pal[3*src+2] << 8;
-                    break;
-                case SKRY_PIX_RGB32F:
+                );
+                break;
+            case SKRY_PIX_RGB32F: CONVERT_LINE(
                     ((float *)out_ptr)[0] = (float)src_palette.pal[3*src] / 0xFF;
                     ((float *)out_ptr)[1] = (float)src_palette.pal[3*src+1] / 0xFF;
                     ((float *)out_ptr)[2] = (float)src_palette.pal[3*src+2] / 0xFF;
-                    break;
-                case SKRY_PIX_RGB64F:
+                );
+                break;
+            case SKRY_PIX_RGB64F: CONVERT_LINE(
                     ((double *)out_ptr)[0] = (double)src_palette.pal[3*src] / 0xFF;
                     ((double *)out_ptr)[1] = (double)src_palette.pal[3*src+1] / 0xFF;
                     ((double *)out_ptr)[2] = (double)src_palette.pal[3*src+2] / 0xFF;
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_RGB8)
+            #undef src
+        }
+        else if (src_pix_fmt == SKRY_PIX_RGB8)
+        {
+            switch (dest_pix_fmt)
             {
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(((int)in_ptr[0] + in_ptr[1] + in_ptr[2])/3); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = ((uint16_t)in_ptr[0] + in_ptr[1] + in_ptr[2])/3 * 0xFF; break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)in_ptr[0] + in_ptr[1] + in_ptr[2]) * 1.0f/(3*0xFF); break;
-                case SKRY_PIX_BGRA8:
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(((int)in_ptr[0] + in_ptr[1] + in_ptr[2])/3); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = ((uint16_t)in_ptr[0] + in_ptr[1] + in_ptr[2])/3 * 0xFF; ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = ((int)in_ptr[0] + in_ptr[1] + in_ptr[2]) * 1.0f/(3*0xFF); ); break;
+            case SKRY_PIX_BGRA8: CONVERT_LINE(
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_BGR8: // intentional fall-through
                     out_ptr[0] = in_ptr[2];
                     out_ptr[1] = in_ptr[1];
                     out_ptr[2] = in_ptr[0];
-                    break;
-                case SKRY_PIX_RGB16:
+                );
+                break;
+
+            case SKRY_PIX_BGR8: CONVERT_LINE(
+                    out_ptr[0] = in_ptr[2];
+                    out_ptr[1] = in_ptr[1];
+                    out_ptr[2] = in_ptr[0];
+                );
+                break;
+            case SKRY_PIX_RGB16: CONVERT_LINE(
                     ((uint16_t *)out_ptr)[0] = (uint16_t)in_ptr[0] << 8;
                     ((uint16_t *)out_ptr)[1] = (uint16_t)in_ptr[1] << 8;
                     ((uint16_t *)out_ptr)[2] = (uint16_t)in_ptr[2] << 8;
-                    break;
-                case SKRY_PIX_RGB32F:
+                );
+                break;
+            case SKRY_PIX_RGB32F: CONVERT_LINE(
                     ((float *)out_ptr)[0] = in_ptr[0] * 1.0f/0xFF;
                     ((float *)out_ptr)[1] = in_ptr[1] * 1.0f/0xFF;
                     ((float *)out_ptr)[2] = in_ptr[2] * 1.0f/0xFF;
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_BGR8)
+        }
+        else if (src_pix_fmt == SKRY_PIX_BGR8)
+        {
+            switch (dest_pix_fmt)
             {
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)(((int)in_ptr[0] + in_ptr[1] + in_ptr[2])/3); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = ((uint16_t)in_ptr[0] + in_ptr[1] + in_ptr[2])/3 * 0xFF; break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)in_ptr[0] + in_ptr[1] + in_ptr[2]) * 1.0f/(3*0xFF); break;
-                case SKRY_PIX_RGB8:
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)(((int)in_ptr[0] + in_ptr[1] + in_ptr[2])/3); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = ((uint16_t)in_ptr[0] + in_ptr[1] + in_ptr[2])/3 * 0xFF; ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = ((int)in_ptr[0] + in_ptr[1] + in_ptr[2]) * 1.0f/(3*0xFF); ); break;
+            case SKRY_PIX_RGB8: CONVERT_LINE(
                     out_ptr[0] = in_ptr[2];
                     out_ptr[1] = in_ptr[1];
                     out_ptr[2] = in_ptr[0];
-                    break;
-                case SKRY_PIX_BGRA8:
+                );
+                break;
+            case SKRY_PIX_BGRA8: CONVERT_LINE(
                     out_ptr[3] = 0xFF;
                     out_ptr[2] = in_ptr[2];
                     out_ptr[1] = in_ptr[1];
                     out_ptr[0] = in_ptr[0];
-                    break;
-                case SKRY_PIX_RGB16:
+                );
+                break;
+            case SKRY_PIX_RGB16: CONVERT_LINE(
                     ((uint16_t *)out_ptr)[0] = (uint16_t)in_ptr[0] << 8;
                     ((uint16_t *)out_ptr)[1] = (uint16_t)in_ptr[1] << 8;
                     ((uint16_t *)out_ptr)[2] = (uint16_t)in_ptr[2] << 8;
-                    break;
-                case SKRY_PIX_RGB32F:
+                );
+                break;
+            case SKRY_PIX_RGB32F: CONVERT_LINE(
                     ((float *)out_ptr)[0] = in_ptr[0] * 1.0f/0xFF;
                     ((float *)out_ptr)[1] = in_ptr[1] * 1.0f/0xFF;
                     ((float *)out_ptr)[2] = in_ptr[2] * 1.0f/0xFF;
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_RGB16)
+        }
+        else if (src_pix_fmt == SKRY_PIX_RGB16)
+        {
+            #define in_ptr16  ((uint16_t *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                uint16_t *in_ptr16 = (uint16_t *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)((((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])>>8) / 3); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)(((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])/3); break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = ((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2]) * 1.0f/(3*0xFFFF); break;
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)((((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])>>8) / 3); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)(((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2])/3); ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = ((int)in_ptr16[0] + in_ptr16[1] + in_ptr16[2]) * 1.0f/(3*0xFFFF); ); break;
 
-                case SKRY_PIX_BGRA8:
+            case SKRY_PIX_BGRA8: CONVERT_LINE(
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_BGR8: // intentional fall-through
                     out_ptr[2] = (uint8_t)(in_ptr16[0] >> 8);
                     out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
                     out_ptr[0] = (uint8_t)(in_ptr16[2] >> 8);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB8:
+            case SKRY_PIX_BGR8: CONVERT_LINE(
+                    out_ptr[2] = (uint8_t)(in_ptr16[0] >> 8);
+                    out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
+                    out_ptr[0] = (uint8_t)(in_ptr16[2] >> 8);
+                );
+                break;
+
+            case SKRY_PIX_RGB8: CONVERT_LINE(
                     out_ptr[0] = (uint8_t)(in_ptr16[0] >> 8);
                     out_ptr[1] = (uint8_t)(in_ptr16[1] >> 8);
                     out_ptr[2] = (uint8_t)(in_ptr16[2] >> 8);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB32F:
+            case SKRY_PIX_RGB32F: CONVERT_LINE(
                     ((float *)out_ptr)[0] = in_ptr16[0] * 1.0f/0xFFFF;
                     ((float *)out_ptr)[1] = in_ptr16[1] * 1.0f/0xFFFF;
                     ((float *)out_ptr)[2] = in_ptr16[2] * 1.0f/0xFFFF;
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_RGB32F)
+            #undef in_ptr16
+        }
+        else if (src_pix_fmt == SKRY_PIX_RGB32F)
+        {
+            #define src  ((float *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                float *src = (float *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)((src[0] + src[1] + src[2]) * 0xFF/3.0f); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)((src[0] + src[1] + src[2]) * 0xFFFF/3.0f); break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = (src[0] + src[1] + src[2])/3; break;
-                case SKRY_PIX_MONO64F: *(double *)out_ptr = (src[0] + src[1] + src[2])/3; break;
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)((src[0] + src[1] + src[2]) * 0xFF/3.0f); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)((src[0] + src[1] + src[2]) * 0xFFFF/3.0f); ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = (src[0] + src[1] + src[2])/3; ); break;
+            case SKRY_PIX_MONO64F: CONVERT_LINE( *(double *)out_ptr = (src[0] + src[1] + src[2])/3; ); break;
 
-                case SKRY_PIX_BGRA8:
-                    out_ptr[3] = 0xFF;
-                case SKRY_PIX_BGR8: // intentional fall-through
+            case SKRY_PIX_BGRA8: CONVERT_LINE(
+                out_ptr[3] = 0xFF;
+                out_ptr[0] = (uint8_t)(src[2] * 0xFF);
+                out_ptr[1] = (uint8_t)(src[1] * 0xFF);
+                out_ptr[2] = (uint8_t)(src[0] * 0xFF);
+                );
+                break;
+
+            case SKRY_PIX_BGR8: CONVERT_LINE(
                     out_ptr[0] = (uint8_t)(src[2] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[0] * 0xFF);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB8:
+            case SKRY_PIX_RGB8: CONVERT_LINE(
                     out_ptr[0] = (uint8_t)(src[0] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[2] * 0xFF);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB16:
+            case SKRY_PIX_RGB16: CONVERT_LINE(
                     ((uint16_t *)out_ptr)[0] = (uint16_t)(src[0] * 0xFFFF);
                     ((uint16_t *)out_ptr)[1] = (uint16_t)(src[1] * 0xFFFF);
                     ((uint16_t *)out_ptr)[2] = (uint16_t)(src[2] * 0xFFFF);
-                    break;
-                case SKRY_PIX_RGB64F:
+                );
+                break;
+            case SKRY_PIX_RGB64F: CONVERT_LINE(
                     ((double *)out_ptr)[0] = src[0];
                     ((double *)out_ptr)[1] = src[1];
                     ((double *)out_ptr)[2] = src[2];
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-            else if (src_pix_fmt == SKRY_PIX_RGB64F)
+            #undef src
+        }
+        else if (src_pix_fmt == SKRY_PIX_RGB64F)
+        {
+            #define src  ((double *)in_ptr)
+            switch (dest_pix_fmt)
             {
-                double *src = (double *)in_ptr;
-                switch (dest_pix_fmt)
-                {
-                case SKRY_PIX_MONO8: *out_ptr = (uint8_t)((src[0] + src[1] + src[2]) * 0xFF/3.0f); break;
-                case SKRY_PIX_MONO16: *(uint16_t *)out_ptr = (uint16_t)((src[0] + src[1] + src[2]) * 0xFFFF/3.0f); break;
-                case SKRY_PIX_MONO32F: *(float *)out_ptr = (src[0] + src[1] + src[2])/3; break;
-                case SKRY_PIX_MONO64F: *(double *)out_ptr = (src[0] + src[1] + src[2])/3; break;
-                case SKRY_PIX_BGRA8:
+            case SKRY_PIX_MONO8: CONVERT_LINE( *out_ptr = (uint8_t)((src[0] + src[1] + src[2]) * 0xFF/3.0f); ); break;
+            case SKRY_PIX_MONO16: CONVERT_LINE( *(uint16_t *)out_ptr = (uint16_t)((src[0] + src[1] + src[2]) * 0xFFFF/3.0f); ); break;
+            case SKRY_PIX_MONO32F: CONVERT_LINE( *(float *)out_ptr = (src[0] + src[1] + src[2])/3; ); break;
+            case SKRY_PIX_MONO64F: CONVERT_LINE( *(double *)out_ptr = (src[0] + src[1] + src[2])/3; ); break;
+            case SKRY_PIX_BGRA8: CONVERT_LINE(
                     out_ptr[3] = 0xFF;
-                case SKRY_PIX_BGR8: // intentional fall-through
                     out_ptr[0] = (uint8_t)(src[2] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[0] * 0xFF);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB8:
+            case SKRY_PIX_BGR8: CONVERT_LINE(
+                    out_ptr[0] = (uint8_t)(src[2] * 0xFF);
+                    out_ptr[1] = (uint8_t)(src[1] * 0xFF);
+                    out_ptr[2] = (uint8_t)(src[0] * 0xFF);
+                );
+                break;
+
+            case SKRY_PIX_RGB8: CONVERT_LINE(
                     out_ptr[0] = (uint8_t)(src[0] * 0xFF);
                     out_ptr[1] = (uint8_t)(src[1] * 0xFF);
                     out_ptr[2] = (uint8_t)(src[2] * 0xFF);
-                    break;
+                );
+                break;
 
-                case SKRY_PIX_RGB16:
+            case SKRY_PIX_RGB16: CONVERT_LINE(
                     ((uint16_t *)out_ptr)[0] = (uint16_t)(src[0] * 0xFFFF);
                     ((uint16_t *)out_ptr)[1] = (uint16_t)(src[1] * 0xFFFF);
                     ((uint16_t *)out_ptr)[2] = (uint16_t)(src[2] * 0xFFFF);
-                    break;
-                case SKRY_PIX_RGB32F:
+                );
+                break;
+            case SKRY_PIX_RGB32F: CONVERT_LINE(
                     ((float *)out_ptr)[0] = src[0];
                     ((float *)out_ptr)[1] = src[1];
                     ((float *)out_ptr)[2] = src[2];
-                    break;
-                default:
-                    break;
-                }
+                );
+                break;
+            default:
+                break;
             }
-
-            in_ptr += in_ptr_step;
-            out_ptr += out_ptr_step;
+            #undef src
         }
     }
 }
