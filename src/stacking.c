@@ -431,9 +431,11 @@ enum SKRY_result SKRY_stacking_step(SKRY_Stacking *stacking)
         {
             struct SKRY_point pos; // position of triangle's vertex in the current image
             int is_valid;
-        } p0 = { .pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v0, curr_img_idx, &p0.is_valid) },
-          p1 = { .pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v1, curr_img_idx, &p1.is_valid) },
-          p2 = { .pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v2, curr_img_idx, &p2.is_valid) };
+        } p0, p1, p2;
+
+        p0.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v0, curr_img_idx, &p0.is_valid);
+        p1.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v1, curr_img_idx, &p1.is_valid);
+        p2.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v2, curr_img_idx, &p2.is_valid);
 
         if (p0.is_valid && p1.is_valid && p2.is_valid)
         {
@@ -478,7 +480,7 @@ enum SKRY_result SKRY_stacking_step(SKRY_Stacking *stacking)
             struct SKRY_point pos; // position of triangle's vertex in the current image
             int is_valid;
         } p0, p1, p2;
-        
+
         p0.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v0, curr_img_idx, &p0.is_valid);
         p1.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v1, curr_img_idx, &p1.is_valid);
         p2.pos = SKRY_get_ref_pt_pos(stacking->ref_pt_align, tri->v2, curr_img_idx, &p2.is_valid);
