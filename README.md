@@ -39,7 +39,7 @@ If Make cannot be used, simply compile all `*.c` files and link them into a libr
 ----------------------------------------
 ### 2.1. Using with *libav*
 
-If `USE_LIBAV=1` (required for full AVI support), programs linking with *libskry* must also link with *libav* (`-lavformat -lavcodec -lavutil`). The libraries are usually available as a package named `ffmpeg-devel` or similar. If not, they can be built from sources by running:
+If `USE_LIBAV=1` (required for full AVI support), programs linking with *libskry* must also link with *libav* (`-lavformat -lavcodec -lavutil`). The libraries are usually available as a package named `ffmpeg-devel` or similar (under MSYS2: `mingw64/mingw-w64-x86_64-ffms2`). If not, they can be built from sources by running:
 
 ```
 $ git clone https://git.ffmpeg.org/ffmpeg.git
@@ -49,7 +49,7 @@ $ make
 $ make install
 ```
 
-Under MSYS2 (Windows), first install Git and Yasm: `pacman -S git yasm`, and pass an additional parameter to `./configure`: `--prefix=$MSYSTEM_PREFIX`.
+To build under MSYS2 (Windows), first install Git and Yasm: `pacman -S git yasm`, and pass an additional parameter to `./configure`: `--prefix=$MSYSTEM_PREFIX`.
 
 
 #### Ubuntu and *libav*
