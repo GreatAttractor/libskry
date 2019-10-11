@@ -120,7 +120,7 @@ To use the C++ wrappers:
 
 If libskry is built with OpenMP support (this is the default), any program using it must also link with OpenMP-related libraries. E.g. in case of GCC on Linux or MinGW/MSYS, use ``-lskry -lm -lgomp``.
 
-See the ``doc`` folder for simple examples that illustrate the full stacking process.
+See the ``doc/src`` folder for simple examples that illustrate the full stacking process.
 
 If a function returns a non-const pointer, it is the caller's responsibility to free its memory with `free()` or with an appropriate ``SKRY_free_XX`` function.
 
