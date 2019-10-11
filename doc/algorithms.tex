@@ -1,0 +1,65 @@
+\documentclass[12pt]{report}
+\usepackage[lighttt]{lmodern}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{gray}{cmyk}{0,0,0,0.05}
+\definecolor{darkblue}{rgb}{0,0,0.65}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+
+\begin{document}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{darkgreen}\bfseries,
+    language=C,
+    backgroundcolor=\color{gray},
+    deletekeywords={int,unsigned,char,void,short,float,double,long},
+    morekeywords={
+        restrict
+    },
+    classoffset=1,
+    morekeywords={
+        int,unsigned,char,void,short,float,double,long,
+        ptrdiff_t,
+        uint8_t,
+        size_t,
+    },
+    keywordstyle=\color{darkblue},
+    classoffset=0
+}
+
+\begin{lstlisting}
+SKRY_quality analyze_quality(const SKRY_ImgSeq *img_seq);
+struct A
+{
+    int a;
+    float b;
+};
+
+enum Bla { ITEM1, ITEM2 };
+
+static enum SKRY_result box_blur(uint8_t* src, uint8_t* blurred,
+    unsigned width,
+    unsigned height,
+    ptrdiff_t src_line_stride,
+    ptrdiff_t blurred_line_stride,
+    unsigned box_radius,
+    unsigned iterations
+);
+
+\end{lstlisting}
+
+Some normal text here. Really long text, I can't stand it! You better, 'cuz \emph{lorem ipsum}. Some normal text here.
+Really long text, I can't stand it! You better, 'cuz \emph{lorem ipsum}. Some normal text here. Really long text,
+I can't stand it! You better, 'cuz \emph{lorem ipsum}.
+
+And check out this new snippet:
+
+\begin{lstlisting}
+void kill_all_enemies(size_t count, void restrict* contents);
+\end{lstlisting}
+
+
+\end{document}
