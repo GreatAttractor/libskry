@@ -27,6 +27,8 @@ version 0.3.0 (2017-06-05)
 
 For a comprehensive example of libskry's usage, see the **[Stackistry](https://github.com/GreatAttractor/stackistry/)** project.
 
+Further reading: **[libskry - Algorithms summary](doc/algorithms.pdf)**.
+
 
 ----------------------------------------
 ## 2. Requirements
