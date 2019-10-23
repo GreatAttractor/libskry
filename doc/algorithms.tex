@@ -139,7 +139,7 @@ Image blurring is performed with a~box filter applied three times, which gives r
 has short running time.
 
 \lstset{emph={detail_scale},emphstyle=\bfseries}
-\begin{lstlisting}[caption={Image quality ({\ttfamily{filters.h/.c, quality.h/.c}})}]
+\begin{lstlisting}[caption={Image quality ({\ttfamily{filters.h/.c, quality.h/.c}})}. Box blur radius is specified as the parameter {\ttfamily{detail\_scale}}.]
 #define QUALITY_ESTIMATE_BOX_BLUR_ITERATIONS 3
 
 SKRY_QualityEstimation* SKRY_init_quality_est(
